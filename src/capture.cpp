@@ -129,8 +129,9 @@ void Capture::openFile(const std::string &file_path)
 
 bool Capture::capture()
 {
-  if (cap_.read(bridge_.image))
+  if (cap_.read(bridge_flip_.image))
   {
+    flip(bridge_flip_.image, bridge_.image, -1);
     ros::Time stamp = ros::Time::now() - capture_delay_;
     bridge_.encoding = enc::BGR8;
     bridge_.header.stamp = stamp;

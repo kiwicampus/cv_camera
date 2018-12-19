@@ -196,6 +196,7 @@ private:
    * @brief this stores last captured image.
    */
   cv_bridge::CvImage bridge_;
+  cv_bridge::CvImage bridge_flip_;
 
   /**
    * @brief this stores last captured image info.
