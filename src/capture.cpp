@@ -137,6 +137,8 @@ bool Capture::capture()
     bridge_.header.stamp = stamp;
     bridge_.header.frame_id = frame_id_;
 
+    bridge_.image = bridge_.image.rowRange(bridge_.image.rows/3, bridge_.image.rows);
+
     info_ = info_manager_.getCameraInfo();
     if (info_.height == 0 && info_.width == 0)
     {
