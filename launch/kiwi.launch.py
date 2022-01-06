@@ -41,6 +41,12 @@ def generate_launch_description():
         default_value="10.0",
         description="Rate of publish images",
     )
+    camera_info_url = LaunchConfiguration("camera_info_url")
+    declare_camera_info_url_cmd = DeclareLaunchArgument(
+        "camera_info_url",
+        default_value="",
+        description="Rate of publish images",
+    )
     read_rate = LaunchConfiguration("read_rate")
     declare_read_rate_cmd = DeclareLaunchArgument(
         "read_rate",
@@ -66,6 +72,7 @@ def generate_launch_description():
                 {"read_rate": read_rate},
                 {"cv_cap_prop_fourcc": 1196444237.0},
                 {"frame_id": "PandarXT-32"},
+                {"camera_info_url": camera_info_url},
             ],
             package="cv_camera",
             executable="cv_camera_node",
@@ -83,6 +90,7 @@ def generate_launch_description():
             SetEnvironmentVariable("RCUTILS_LOGGING_BUFFERED_STREAM", "1"),
             declare_publish_rate_cmd,
             declare_read_rate_cmd,
+            declare_camera_info_url_cmd,
             *nodes,
         ]
     )
