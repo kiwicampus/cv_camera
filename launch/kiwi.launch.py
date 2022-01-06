@@ -17,12 +17,12 @@ if find_cameras is None:
     }
 else:
     camera_names_ports = {
-        "left": "1-3.5:1.0",
-        "right": "1-3.6:1.0",
+        "left": "1-1.3:1.0",
+        "right": "1-1.2:1.0",
         # "left": "1-13:1.0",
         # "right": "1-3:1.0",
-        "back": "1-3.3:1.0",
-        "zoom": "1-3.2:1.0",
+        "back": "1-1.5:1.0",
+        "zoom": "1-1.6:1.0",
     }
     usb_ports_cameras = find_cameras()
     print(usb_ports_cameras)
