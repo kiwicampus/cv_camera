@@ -2,6 +2,8 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from ament_index_python.packages import get_package_share_directory
+import os
 
 try:
     from vision.utils.cam_handler import find_cameras
@@ -17,7 +19,7 @@ if find_cameras is None:
     }
 else:
     camera_names_ports = {
-        "left": "1-1.3:1.0",
+        "left": "1-9:1.0",
         "right": "1-1.2:1.0",
         # "left": "1-13:1.0",
         # "right": "1-3:1.0",
@@ -33,6 +35,10 @@ else:
             print(f"Camera {camera_name} not found")
 
 
+base_path = get_package_share_directory("cv_camera")
+config_path = "file:///" + os.path.join(base_path, "launch", "camera_info.yaml")
+
+
 def generate_launch_description():
 
     publish_rate = LaunchConfiguration("publish_rate")
@@ -44,8 +50,8 @@ def generate_launch_description():
     camera_info_url = LaunchConfiguration("camera_info_url")
     declare_camera_info_url_cmd = DeclareLaunchArgument(
         "camera_info_url",
-        default_value="",
-        description="Rate of publish images",
+        default_value=config_path,
+        description="path to the camera info file",
     )
     read_rate = LaunchConfiguration("read_rate")
     declare_read_rate_cmd = DeclareLaunchArgument(
@@ -63,6 +69,7 @@ def generate_launch_description():
 
     nodes = []
     for camera_name, port in camera_names_ports.items():
+        print(read_rate)
         node = Node(
             parameters=[
                 {"device_path": port},
@@ -71,7 +78,7 @@ def generate_launch_description():
                 {"publish_rate": publish_rate},
                 {"read_rate": read_rate},
                 {"cv_cap_prop_fourcc": 1196444237.0},
-                {"frame_id": "PandarXT-32"},
+                {"frame_id": "camera"},
                 {"camera_info_url": camera_info_url},
             ],
             package="cv_camera",
