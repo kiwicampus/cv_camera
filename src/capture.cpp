@@ -138,7 +138,7 @@ void Capture::openFile(const std::string &file_path)
 
 bool Capture::capture()
 {
-  if (cap_.read(bridge_.image))
+  if (cap_.retrieve(bridge_.image))
   {
     rclcpp::Clock system_clock(RCL_SYSTEM_TIME);
     rclcpp::Time stamp = system_clock.now() - capture_delay_;
