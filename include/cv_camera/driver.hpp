@@ -56,6 +56,11 @@ class Driver : public rclcpp::Node
      */
     std::string port;
     /**
+     * @brief camera device id /dev/videoX.
+     */
+    int32_t device_id;
+
+    /**
      * @brief Topic name.
      */
     std::string topic_name;

@@ -53,7 +53,7 @@ class Capture
      * @throw cv_camera::DeviceError device open failed
      *
      */
-    void open(int32_t device_id);
+    bool open(int32_t device_id);
 
     /**
      * @brief Open capture device with device name.

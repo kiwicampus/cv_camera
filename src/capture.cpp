@@ -82,14 +82,17 @@ void Capture::rescaleCameraInfo(uint width, uint height)
     info_.p[6] *= height_coeff;
 }
 
-void Capture::open(int32_t device_id)
+bool Capture::open(int32_t device_id)
 {
     cap_.open(device_id, cv::CAP_V4L2);
     if (!cap_.isOpened())
     {
-        std::stringstream stream;
-        stream << "device_id" << device_id << " cannot be opened";
-        throw DeviceError(stream.str());
+        RCLCPP_ERROR(node_->get_logger(), "Unable to open device /dev/video%d.", device_id);
+        return false;
+    }
+    else
+    {
+        RCLCPP_INFO_ONCE(node_->get_logger(), "Opening topic %s: with /dev/video%d", topic_name_.c_str(), device_id);
     }
     // pub_ = it_.advertiseCamera(topic_name_, buffer_size_);
     rmw_qos_profile_t custom_qos = rmw_qos_profile_sensor_data;
@@ -97,6 +100,7 @@ void Capture::open(int32_t device_id)
     pub_ = image_transport::create_camera_publisher(node_.get(), topic_name_, custom_qos);
 
     loadCameraInfo();
+    return true;
 }
 
 bool Capture::open(const std::string& port)
@@ -128,7 +132,7 @@ bool Capture::open(const std::string& port)
 
     if (!cap_.isOpened())
     {
-        RCLCPP_ERROR(node_->get_logger(), "Unable to open device %s.", port.c_str());
+        RCLCPP_ERROR(node_->get_logger(), "Unable to open port %s.", port.c_str());
         return false;
         // throw DeviceError("device_path " + device_path + " cannot be opened");
     }

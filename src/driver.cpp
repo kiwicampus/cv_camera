@@ -19,7 +19,6 @@ Driver::Driver(const rclcpp::NodeOptions& options) : Node("cv_camera", options)
 bool Driver::setup()
 {
     double hz_pub(DEFAULT_RATE), hz_read(DEFAULT_RATE);
-    int32_t device_id(0);
     std::string frame_id("camera");
     std::string file_path("");
 
@@ -40,7 +39,7 @@ bool Driver::setup()
     this->declare_parameter("qr_scan", false);
     this->declare_parameter("data_capture_csv", false);
     this->declare_parameter("data_capture_video", false);
-    // this->declare_parameter("device_id", 0);
+    this->declare_parameter("device_id", -1);
     // this->declare_parameter("file_path", "");
     // this->declare_parameter("frame_id", "camera");
 
@@ -52,7 +51,7 @@ bool Driver::setup()
     // Get Custom Parameters
     this->get_parameter("publish_rate", hz_pub);
     this->get_parameter("read_rate", hz_read);
-    // this->get_parameter("device_id", device_id);
+    this->get_parameter("device_id", device_id);
     // this->get_parameter("frame_id", frame_id);
     this->get_parameter("topic_name", topic_name);
     this->get_parameter("name", name);
@@ -71,13 +70,17 @@ bool Driver::setup()
     {
         if (!camera_->open(port))
         {
-            RCLCPP_WARN(get_logger(), "Couldnt open camera");
+            RCLCPP_WARN(get_logger(), "Couldnt open camera by port");
             // return false;
         }
     }
     else
     {
-        camera_->open(device_id);
+        if (!camera_->open(device_id))
+        {
+            RCLCPP_WARN(get_logger(), "Couldnt open camera by device id");
+            // return false;
+        }
     }
 
     camera_->setPropertyFromParam(cv::CAP_PROP_POS_MSEC, "cv_cap_prop_pos_msec");
@@ -122,9 +125,9 @@ void Driver::proceed()
 {
     if (!camera_->grab())
     {
-        std::chrono::milliseconds video_recovery_time(VIDEO_STREAM_CAM_RECOVERY_TIME * 1000);  // or whatever
+        std::chrono::milliseconds video_recovery_time(VIDEO_STREAM_CAM_RECOVERY_TIME * 1000);
 
-        while (!camera_->open(port) && m_reconnection_attempts < 10)
+        while ((!camera_->open(port)) && m_reconnection_attempts < VIDEO_STREAM_CAM_RECOVERY_TRIES)
         {
             m_reconnection_attempts += 1;
             RCLCPP_ERROR(get_logger(), "not possible to open %s. (device %s), retrying... %d/%d ", name.c_str(),
@@ -132,7 +135,7 @@ void Driver::proceed()
             camera_->open(port);
             std::this_thread::sleep_for(video_recovery_time);
         }
-        RCLCPP_ERROR(get_logger(), "Error while opening %s. %s camera Lost", port.c_str(), name.c_str());
+        RCLCPP_ERROR(get_logger(), "%s camera Lost", name.c_str());
         m_proceed_tmr->cancel();
         return;
     };
