@@ -15,6 +15,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
+#include "std_msgs/msg/u_int8.hpp"
 
 // Custom libraries
 #include "utils/console.hpp"

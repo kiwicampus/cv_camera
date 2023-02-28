@@ -26,6 +26,8 @@ class Driver : public rclcpp::Node
 
     rclcpp::TimerBase::SharedPtr m_proceed_tmr; /*!< @sa proceed() */
 
+    rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr m_pub_cam_status;
+
     /**
      * @brief Setup camera device and ROS parameters.
      *
@@ -59,7 +61,6 @@ class Driver : public rclcpp::Node
      * @brief camera device id /dev/videoX.
      */
     int32_t device_id;
-
     /**
      * @brief Topic name.
      */
@@ -68,6 +69,17 @@ class Driver : public rclcpp::Node
      * @brief Camera name.
      */
     std::string name;
+    /**
+     * @brief camera status
+        Subscription to get cameras status from video_mapping
+        -1 -> Unknown
+        0 -> Unrecognized
+        1 -> Online
+        2 -> Disconnected
+        3 -> Offline/Lost  [No for stereo]
+        4 -> Lecture Error [No for stereo]
+     */
+    std::shared_ptr<std_msgs::msg::UInt8> cam_status;
     /**
      * @brief Environment variables
      */
