@@ -97,6 +97,12 @@ class Capture
     void open();
 
     /**
+     * @brief Close capture device.
+        Uses release OpenCV function.
+     */
+    void close();
+
+    /**
      * @brief open video file instead of capture device.
      */
     void openFile(const std::string& file_path);

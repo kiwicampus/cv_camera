@@ -106,11 +106,11 @@ bool Driver::setup()
 
     cam_status = std::make_shared<std_msgs::msg::UInt8>();
     cam_status->data = 1;
+    m_pub_cam_status->publish(*cam_status);
 
     publish_tmr_ = this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / hz_pub)), [&]() {
         if (camera_->capture())
         {
-            m_pub_cam_status->publish(*cam_status);
         }
     });
 #ifdef CV_CAP_PROP_WHITE_BALANCE_U
@@ -140,14 +140,25 @@ void Driver::proceed()
                          port.c_str(), m_reconnection_attempts, VIDEO_STREAM_CAM_RECOVERY_TRIES);
             camera_->open(port);
             std::this_thread::sleep_for(video_recovery_time);
-            cam_status->data = 4;
+            cam_status->data = 2;
             m_pub_cam_status->publish(*cam_status);
+            if (camera_->grab())
+            {
+                m_reconnection_attempts = 0;
+                cam_status->data = 1;
+                m_pub_cam_status->publish(*cam_status);
+                break;
+            }
         }
-        RCLCPP_ERROR(get_logger(), "%s camera Lost", name.c_str());
-        cam_status->data = 2;
-        m_pub_cam_status->publish(*cam_status);
-        m_proceed_tmr->cancel();
-        return;
+        if (m_reconnection_attempts >= VIDEO_STREAM_CAM_RECOVERY_TRIES)
+        {
+            RCLCPP_ERROR(get_logger(), "%s camera Lost", name.c_str());
+            camera_->close();
+            cam_status->data = 3;
+            m_pub_cam_status->publish(*cam_status);
+            m_proceed_tmr->cancel();
+            return;
+        }
     };
     rate_->sleep();
 }

@@ -187,6 +187,14 @@ bool Capture::capture()
     return false;
 }
 
+void Capture::close()
+{
+    if (cap_.isOpened())
+    {
+        cap_.release();
+    }
+}
+
 // void Capture::publish() { pub_.publish(*getImageMsgPtr(), info_); }
 
 bool Capture::setPropertyFromParam(int property_id, const std::string& param_name)
