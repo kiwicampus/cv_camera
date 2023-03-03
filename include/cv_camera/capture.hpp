@@ -20,10 +20,6 @@
 // Custom libraries
 #include "utils/console.hpp"
 
-// Necessary for getting the process PID
-#include <unistd.h>
-#define GETPID getpid
-
 /**
  * @brief namespace of this package
  */
