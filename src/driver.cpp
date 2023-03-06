@@ -142,23 +142,18 @@ void Driver::proceed()
             std::this_thread::sleep_for(video_recovery_time);
             cam_status->data = 2;
             m_pub_cam_status->publish(*cam_status);
-            if (camera_->grab())
-            {
-                m_reconnection_attempts = 0;
-                cam_status->data = 1;
-                m_pub_cam_status->publish(*cam_status);
-                break;
-            }
         }
         if (m_reconnection_attempts >= VIDEO_STREAM_CAM_RECOVERY_TRIES)
         {
             RCLCPP_ERROR(get_logger(), "%s camera Lost", name.c_str());
+            m_reconnection_attempts = 0;
             camera_->close();
             cam_status->data = 3;
             m_pub_cam_status->publish(*cam_status);
             m_proceed_tmr->cancel();
             return;
         }
+        m_reconnection_attempts = 0;
     };
     rate_->sleep();
 }
