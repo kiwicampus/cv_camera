@@ -40,6 +40,8 @@ bool Driver::setup()
     this->declare_parameter("data_capture_csv", false);
     this->declare_parameter("data_capture_video", false);
     this->declare_parameter("device_id", -1);
+    this->declare_parameter("video_stream_recovery_time", 2);
+    this->declare_parameter("video_stream_recovery_tries", 10);
     // this->declare_parameter("file_path", "");
     // this->declare_parameter("frame_id", "camera");
 
@@ -55,6 +57,9 @@ bool Driver::setup()
     // this->get_parameter("frame_id", frame_id);
     this->get_parameter("topic_name", topic_name);
     this->get_parameter("name", name);
+    this->get_parameter("video_stream_recovery_time", m_video_stream_recovery_time);
+    this->get_parameter("video_stream_recovery_tries", m_video_stream_recovery_tries);
+
 
     // Timers
     m_proceed_tmr =
@@ -131,19 +136,19 @@ void Driver::proceed()
 {
     if (!camera_->grab())
     {
-        std::chrono::milliseconds video_recovery_time(VIDEO_STREAM_CAM_RECOVERY_TIME * 1000);
+        std::chrono::milliseconds video_recovery_time(m_video_stream_recovery_time * 1000);
 
-        while ((!camera_->open(port)) && m_reconnection_attempts < VIDEO_STREAM_CAM_RECOVERY_TRIES)
+        while ((!camera_->open(port)) && m_reconnection_attempts < m_video_stream_recovery_tries)
         {
             m_reconnection_attempts += 1;
             RCLCPP_ERROR(get_logger(), "not possible to open %s. (device %s), retrying... %d/%d ", name.c_str(),
-                         port.c_str(), m_reconnection_attempts, VIDEO_STREAM_CAM_RECOVERY_TRIES);
+                         port.c_str(), m_reconnection_attempts, m_video_stream_recovery_tries);
             camera_->open(port);
             std::this_thread::sleep_for(video_recovery_time);
             cam_status->data = 2;
             m_pub_cam_status->publish(*cam_status);
         }
-        if (m_reconnection_attempts >= VIDEO_STREAM_CAM_RECOVERY_TRIES)
+        if (m_reconnection_attempts >= m_video_stream_recovery_tries)
         {
             RCLCPP_ERROR(get_logger(), "%s camera Lost", name.c_str());
             m_reconnection_attempts = 0;

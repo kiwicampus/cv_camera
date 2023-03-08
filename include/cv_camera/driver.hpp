@@ -83,8 +83,8 @@ class Driver : public rclcpp::Node
     /**
      * @brief Environment variables
      */
-    const int VIDEO_STREAM_CAM_RECOVERY_TIME = 2; // getEnv("VIDEO_STREAM_CAM_RECOVERY_TIME", 2);
-    const int VIDEO_STREAM_CAM_RECOVERY_TRIES = 10; // getEnv("VIDEO_STREAM_CAM_RECOVERY_TRIES", 10);
+    int m_video_stream_recovery_time;
+    int m_video_stream_recovery_tries;
     /**
      * @brief Reconnection attempts to open a camera port
      */
