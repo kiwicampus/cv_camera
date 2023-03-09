@@ -92,12 +92,12 @@ bool Capture::open(int32_t device_id)
     }
     else
     {
-        RCLCPP_INFO_ONCE(node_->get_logger(), "Opening topic %s: with /dev/video%d", topic_name_.c_str(), device_id);
+        RCLCPP_WARN_ONCE(node_->get_logger(), "Opening topic %s: with /dev/video%d", topic_name_.c_str(), device_id);
     }
     // pub_ = it_.advertiseCamera(topic_name_, buffer_size_);
-    rmw_qos_profile_t custom_qos = rmw_qos_profile_sensor_data;
-    custom_qos.depth = buffer_size_;
-    pub_ = image_transport::create_camera_publisher(node_.get(), topic_name_, custom_qos);
+    // rmw_qos_profile_t custom_qos = rmw_qos_profile_sensor_data;
+    // custom_qos.depth = buffer_size_;
+    // pub_ = image_transport::create_camera_publisher(node_.get(), topic_name_, custom_qos);
 
     loadCameraInfo();
     return true;
@@ -118,17 +118,6 @@ bool Capture::open(const std::string& port)
         return false;
     }
 
-    if (device.empty())
-    {
-        // RCLCPP_WARN_ONCE(node_->get_logger(), "%s: Camera Not found in port %s", topic_name_.c_str(), port.c_str());
-        return false;
-    }
-    else
-    {
-        RCLCPP_WARN_ONCE(node_->get_logger(), "%s: The port %s is located in %s", topic_name_.c_str(), port.c_str(),
-                         device.c_str());
-    }
-
     cap_.open(device, cv::CAP_V4L2);
 
     if (!cap_.isOpened())
@@ -138,9 +127,9 @@ bool Capture::open(const std::string& port)
         // throw DeviceError("device_path " + device_path + " cannot be opened");
     }
     // pub_ = it_.advertiseCamera(topic_name_, buffer_size_);
-    rmw_qos_profile_t custom_qos = rmw_qos_profile_sensor_data;
-    custom_qos.depth = buffer_size_;
-    pub_ = image_transport::create_camera_publisher(node_.get(), topic_name_, custom_qos);
+    // rmw_qos_profile_t custom_qos = rmw_qos_profile_sensor_data;
+    // custom_qos.depth = buffer_size_;
+    // pub_ = image_transport::create_camera_publisher(node_.get(), topic_name_, custom_qos);
 
     loadCameraInfo();
     return true;
@@ -148,21 +137,21 @@ bool Capture::open(const std::string& port)
 
 void Capture::open() { open(0); }
 
-void Capture::openFile(const std::string& file_path)
+bool Capture::openFile(const std::string& file_path)
 {
     cap_.open(file_path);
     if (!cap_.isOpened())
     {
-        std::stringstream stream;
-        stream << "file " << file_path << " cannot be opened";
-        throw DeviceError(stream.str());
+        RCLCPP_ERROR(node_->get_logger(), "Unable to open file %s.", file_path.c_str());
+        return false;
     }
     // pub_ = it_.advertiseCamera(topic_name_, buffer_size_);
-    rmw_qos_profile_t custom_qos = rmw_qos_profile_sensor_data;
-    custom_qos.depth = buffer_size_;
-    pub_ = image_transport::create_camera_publisher(node_.get(), topic_name_, custom_qos);
+    // rmw_qos_profile_t custom_qos = rmw_qos_profile_sensor_data;
+    // custom_qos.depth = buffer_size_;
+    // pub_ = image_transport::create_camera_publisher(node_.get(), topic_name_, custom_qos);
 
     loadCameraInfo();
+    return true;
 }
 
 bool Capture::capture()

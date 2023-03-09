@@ -71,20 +71,20 @@ bool Driver::setup()
     {
         camera_->openFile(file_path);
     }
+    else if (device_id >= 0)
+    {
+        if (!camera_->open(device_id))
+        {
+            RCLCPP_WARN(get_logger(), "Couldnt open camera by device id");
+            return false;
+        }
+    }
     else if (this->get_parameter("port", port) && port != "")
     {
         if (!camera_->open(port))
         {
             RCLCPP_WARN(get_logger(), "Couldnt open camera by port");
-            // return false;
-        }
-    }
-    else
-    {
-        if (!camera_->open(device_id))
-        {
-            RCLCPP_WARN(get_logger(), "Couldnt open camera by device id");
-            // return false;
+            return false;
         }
     }
 
