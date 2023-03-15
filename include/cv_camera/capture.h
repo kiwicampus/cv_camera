@@ -82,7 +82,7 @@ public:
    * This loads the camera info from the file specified in the camera_info_url parameter.
    */
   void loadCameraInfo();
-  
+
   /**
    * @brief Open default camera device.
    *
@@ -91,7 +91,7 @@ public:
    * @throw cv_camera::DeviceError device open failed
    */
   void open();
-  
+
   /**
    * @brief open video file instead of capture device.
    */
@@ -123,7 +123,7 @@ public:
    *
    */
   void publish();
-  
+
   /**
    * @brief accessor of CameraInfo.
    *
@@ -133,9 +133,9 @@ public:
    */
   inline const sensor_msgs::msg::CameraInfo& getInfo() const
   
-      return info_; 
+    return info_;
   }
-  
+
   /**
    * @brief accessor of cv::Mat
    *
@@ -145,9 +145,9 @@ public:
    */
   inline const cv::Mat& getCvImage() const
   {
-      return bridge_.image; 
+    return bridge_.image;
   }
-  
+
   /**
    * @brief accessor of ROS Image message.
    *
@@ -157,33 +157,33 @@ public:
    */
   inline const sensor_msgs::msg::Image::SharedPtr getImageMsgPtr() const
   {
-      return bridge_.toImageMsg(); 
+    return bridge_.toImageMsg(); 
   }
-  
+
   /**
    * @brief try capture image width
    * @return true if success
    */
   inline bool setWidth(int32_t width)
   {
-      return cap_.set(cv::CAP_PROP_FRAME_WIDTH, width);
+    return cap_.set(cv::CAP_PROP_FRAME_WIDTH, width);
   }
-  
+
   /**
    * @brief try capture image height
    * @return true if success
    */
   inline bool setHeight(int32_t height)
   {
-      return cap_.set(cv::CAP_PROP_FRAME_HEIGHT, height);
+    return cap_.set(cv::CAP_PROP_FRAME_HEIGHT, height);
   }
-  
+
   /**
    * @brief set CV_PROP_*
    * @return true if success
    */
   bool setPropertyFromParam(int property_id, const std::string& param_name);
-  
+
 private:
 /**
  * @brief rescale camera calibration to another resolution
