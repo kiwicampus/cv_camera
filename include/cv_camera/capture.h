@@ -39,7 +39,7 @@ public:
    * @param frame_id frame_id of publishing messages.
    */
   Capture(rclcpp::Node::SharedPtr node,
-          const std::string& topic_name,
+          const std::string &topic_name,
           uint32_t buffer_size,
           const std::string &frame_id);
 
@@ -131,8 +131,8 @@ public:
    *
    * @return CameraInfo
    */
-  inline const sensor_msgs::msg::CameraInfo& getInfo() const
-  
+  inline const sensor_msgs::msg::CameraInfo &getInfo() const
+  {
     return info_;
   }
 
@@ -143,7 +143,7 @@ public:
    *
    * @return captured cv::Mat
    */
-  inline const cv::Mat& getCvImage() const
+  inline const cv::Mat &getCvImage() const
   {
     return bridge_.image;
   }
@@ -157,7 +157,7 @@ public:
    */
   inline const sensor_msgs::msg::Image::SharedPtr getImageMsgPtr() const
   {
-    return bridge_.toImageMsg(); 
+    return bridge_.toImageMsg();
   }
 
   /**
@@ -182,7 +182,7 @@ public:
    * @brief set CV_PROP_*
    * @return true if success
    */
-  bool setPropertyFromParam(int property_id, const std::string& param_name);
+  bool setPropertyFromParam(int property_id, const std::string &param_name);
 
 private:
 /**
