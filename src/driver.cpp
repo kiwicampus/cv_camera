@@ -44,10 +44,8 @@ bool Driver::setup()
   this->declare_parameter("device_id", -1);
   this->declare_parameter("video_stream_recovery_time", 2);
   this->declare_parameter("video_stream_recovery_tries", 10);
-  // this->declare_parameter("file_path", "");
+  this->declare_parameter("file_path", "");
   // this->declare_parameter("frame_id", "camera");
-
-  // Declare CV2 parameters
   this->declare_parameter("width", 640.0);
   this->declare_parameter("height", 360.0);
   this->declare_parameter("fourcc", (double)cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
@@ -62,10 +60,6 @@ bool Driver::setup()
   this->get_parameter("video_stream_recovery_time", video_stream_recovery_time_);
   this->get_parameter("video_stream_recovery_tries", video_stream_recovery_tries_);
 
-  // Timers
-  proceed_tmr_ =
-    this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / hz_read)), std::bind(&Driver::proceed, this));
-  
   camera_.reset(new Capture(shared_from_this(),
                             topic_name_,
                             PUBLISHER_BUFFER_SIZE,
@@ -120,16 +114,21 @@ bool Driver::setup()
     camera_->setPropertyFromParam(cv::CAP_PROP_BUFFERSIZE, "cv_cap_prop_buffersize");
 #endif  // CV_CAP_PROP_BUFFERSIZE
 
+  // Timers
+  proceed_tmr_ =
+    this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / hz_read)), std::bind(&Driver::proceed, this));
+
+  // Publishers
   pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping/" + name_ + "/status", 1);
 
   cam_status_ = std::make_shared<std_msgs::msg::UInt8>();
   cam_status_->data = 1;
   pub_cam_status_->publish(*cam_status_);
-  
+
   publish_tmr_ = this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / hz_pub)), [&]() {
-      if (camera_->capture())
-      {
-      }
+    if (camera_->capture())
+    {
+    }
   });
 
   rate_.reset(new rclcpp::Rate(hz_read));
@@ -146,7 +145,7 @@ void Driver::proceed()
     {
       reconnection_attempts_ += 1;
       RCLCPP_ERROR(get_logger(), "not possible to open %s. (device %s), retrying... %d/%d ", name_.c_str(),
-                      port_.c_str(), reconnection_attempts_, video_stream_recovery_tries_);
+                    port_.c_str(), reconnection_attempts_, video_stream_recovery_tries_);
       camera_->open(port_);
       std::this_thread::sleep_for(video_recovery_time);
       cam_status_->data = 2;
