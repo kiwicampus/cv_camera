@@ -95,14 +95,14 @@ public:
   /**
    * @brief open video file instead of capture device.
    */
-  bool openFile(const std::string& file_path);
-  
+  bool openFile(const std::string &file_path);
+
   /**
    * @brief Close capture device.
    * Uses release OpenCV function.
   */
   void close();
-  
+
   /**
    * @brief capture an image and store.
    *
@@ -189,6 +189,7 @@ private:
    * @brief rescale camera calibration to another resolution
    */
   void rescaleCameraInfo(uint width, uint height);
+
   /**
    * @brief Select appropiate encoding for the image
    */
@@ -208,6 +209,7 @@ private:
               throw std::runtime_error("Unsupported encoding type");
       }
   }
+
   /**
    * @brief set current time to message header
    */
@@ -290,9 +292,6 @@ private:
    * @brief Final publisher for image messages
    */
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_pub_image_ptr;
-
-
-
 };
 
 } // namespace cv_camera

@@ -21,16 +21,16 @@ class Driver : public rclcpp::Node
   */
   explicit Driver(const rclcpp::NodeOptions& options);
   ~Driver();
-  
+
   rclcpp::TimerBase::SharedPtr m_proceed_tmr; /*!< @sa proceed() */
-  
+
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr m_pub_cam_status;
-  
+
   /**
    * @brief Setup camera device and ROS parameters.
-  *
-  * @throw cv_camera::DeviceError device open failed.
-  */
+   *
+   * @throw cv_camera::DeviceError device open failed.
+   */
   bool setup();
   /**
    * @brief Capture, publish and sleep
@@ -43,28 +43,28 @@ class Driver : public rclcpp::Node
   rclcpp::TimerBase::SharedPtr publish_tmr_;
   /**
    * @brief wrapper of cv::VideoCapture.
-  */
+   */
   std::shared_ptr<Capture> camera_;
   
   /**
    * @brief publishing rate.
-  */
+   */
   std::shared_ptr<rclcpp::Rate> rate_;
   /**
    * @brief camera port.
-  */
+   */
   std::string port;
   /**
    * @brief camera device id /dev/videoX.
-  */
+   */
   int32_t device_id;
   /**
    * @brief Topic name.
-  */
+   */
   std::string topic_name;
   /**
    * @brief Camera name.
-  */
+   */
   std::string name;
   /**
    * @brief camera status
@@ -79,12 +79,12 @@ class Driver : public rclcpp::Node
   std::shared_ptr<std_msgs::msg::UInt8> cam_status;
   /**
    * @brief Environment variables
-  */
+   */
   int m_video_stream_recovery_time;
   int m_video_stream_recovery_tries;
   /**
    * @brief Reconnection attempts to open a camera port
-  */
+   */
   int m_reconnection_attempts = 0;
 };
 
