@@ -58,7 +58,7 @@ public:
    * @param port path of the camera device
    * @throw cv_camera::DeviceError device open failed
    */
-  bool open(const std::string& port);
+  bool open(const std::string &port);
 
   /**
    * @brief Finds the equivalent camera device associated to
@@ -185,11 +185,13 @@ public:
   bool setPropertyFromParam(int property_id, const std::string &param_name);
 
 private:
-/**
- * @brief rescale camera calibration to another resolution
- */
+  /**
+   * @brief rescale camera calibration to another resolution
+   */
   void rescaleCameraInfo(uint width, uint height);
-
+  /**
+   * @brief Select appropiate encoding for the image
+   */
   std::string mat_type2encoding(int mat_type)
   {
       switch (mat_type)
@@ -206,6 +208,9 @@ private:
               throw std::runtime_error("Unsupported encoding type");
       }
   }
+  /**
+   * @brief set current time to message header
+   */
   void set_now(builtin_interfaces::msg::Time& time)
   {
       std::chrono::nanoseconds now = std::chrono::high_resolution_clock::now().time_since_epoch();
@@ -239,7 +244,6 @@ private:
    * @brief header.frame_id for publishing images.
    */
   std::string frame_id_;
-
   /**
    * @brief size of publisher buffer
    */

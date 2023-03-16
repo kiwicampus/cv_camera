@@ -1,6 +1,6 @@
 // Copyright [2015] Takashi Ogura<t.ogura@gmail.com>
 
-#include "cv_camera/capture.hpp"
+#include "cv_camera/capture.h"
 #include <sstream>
 #include <string>
 
