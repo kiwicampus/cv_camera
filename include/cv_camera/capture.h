@@ -13,6 +13,7 @@
 #include <sensor_msgs/image_encodings.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <camera_info_manager/camera_info_manager.hpp>
+#include "std_msgs/msg/u_int8.hpp"
 
 // Custom libraries
 #include "utils/console.hpp"
@@ -40,8 +41,8 @@ public:
    */
   Capture(rclcpp::Node::SharedPtr node,
           const std::string &topic_name,
-          uint32_t buffer_size,
-          const std::string &frame_id);
+          const std::string &frame_id,
+          uint32_t buffer_size);
 
   /**
    * @brief Open capture device with device ID.

@@ -62,8 +62,8 @@ bool Driver::setup()
 
   camera_.reset(new Capture(shared_from_this(),
                             topic_name_,
-                            PUBLISHER_BUFFER_SIZE,
-                            frame_id));
+                            frame_id,
+                            PUBLISHER_BUFFER_SIZE));
 
   if (this->get_parameter("file", file_path) && file_path != "")
   {
