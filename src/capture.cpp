@@ -14,8 +14,8 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &topic_name,
     : node_(node),
       it_(node_),
       topic_name_(topic_name),
-      frame_id_(frame_id),
       buffer_size_(buffer_size),
+      frame_id_(frame_id),
       info_manager_(node_.get(), frame_id),
       capture_delay_(rclcpp::Duration(0, 0.0))
 {
@@ -30,14 +30,14 @@ void Capture::loadCameraInfo()
   std::string url;
   if (node_->get_parameter("camera_info_url", url))
   {
-      if (info_manager_.validateURL(url))
-      {
-          info_manager_.loadCameraInfo(url);
-      }
-      else
-      {
-          RCLCPP_ERROR(node_->get_logger(), "Invalid camera info URL %s", url.c_str());
-      }
+    if (info_manager_.validateURL(url))
+    {
+      info_manager_.loadCameraInfo(url);
+    }
+    else
+    {
+      RCLCPP_ERROR(node_->get_logger(), "Invalid camera info URL %s", url.c_str());
+    }
   }
 
   rescale_camera_info_ = false;
@@ -137,8 +137,8 @@ bool Capture::open(const std::string &port)
 }
 
 void Capture::open()
-{ 
-  open(0); 
+{
+  open(0);
 }
 
 bool Capture::openFile(const std::string &file_path)
@@ -160,7 +160,7 @@ bool Capture::openFile(const std::string &file_path)
 
 bool Capture::capture()
 {
-  if (cap_.retrieve(bridge_.image))
+  if (cap_.retrieve(bridge_.image)) // how about changing retrieve to read?
   {
     sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
 
@@ -189,9 +189,12 @@ void Capture::close()
   }
 }
 
-// void Capture::publish() { pub_.publish(*getImageMsgPtr(), info_); }
+void Capture::publish()
+{
+  pub_.publish(*getImageMsgPtr(), info_);
+}
 
-bool Capture::setPropertyFromParam(int property_id, const std::string& param_name)
+bool Capture::setPropertyFromParam(int property_id, const std::string &param_name)
 {
   if (cap_.isOpened())
   {
