@@ -66,7 +66,10 @@ bool Driver::setup()
   proceed_tmr_ =
     this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / hz_read)), std::bind(&Driver::proceed, this));
   
-  camera_.reset(new Capture(shared_from_this(), topic_name_, PUBLISHER_BUFFER_SIZE, frame_id));
+  camera_.reset(new Capture(shared_from_this(),
+                            topic_name_,
+                            PUBLISHER_BUFFER_SIZE,
+                            frame_id));
   
   if (this->get_parameter("file", file_path) && file_path != "")
   {
@@ -107,6 +110,15 @@ bool Driver::setup()
   camera_->setPropertyFromParam(cv::CAP_PROP_CONVERT_RGB, "cv_cap_prop_convert_rgb");
   camera_->setPropertyFromParam(cv::CAP_PROP_RECTIFICATION, "cv_cap_prop_rectification");
   camera_->setPropertyFromParam(cv::CAP_PROP_ISO_SPEED, "cv_cap_prop_iso_speed");
+#ifdef CV_CAP_PROP_WHITE_BALANCE_U
+    camera_->setPropertyFromParam(cv::CAP_PROP_WHITE_BALANCE_U, "cv_cap_prop_white_balance_u");
+#endif  // CV_CAP_PROP_WHITE_BALANCE_U
+#ifdef CV_CAP_PROP_WHITE_BALANCE_V
+    camera_->setPropertyFromParam(cv::CAP_PROP_WHITE_BALANCE_V, "cv_cap_prop_white_balance_v");
+#endif  // CV_CAP_PROP_WHITE_BALANCE_V
+#ifdef CV_CAP_PROP_BUFFERSIZE
+    camera_->setPropertyFromParam(cv::CAP_PROP_BUFFERSIZE, "cv_cap_prop_buffersize");
+#endif  // CV_CAP_PROP_BUFFERSIZE
 
   pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping/" + name_ + "/status", 1);
 
@@ -119,15 +131,6 @@ bool Driver::setup()
       {
       }
   });
-#ifdef CV_CAP_PROP_WHITE_BALANCE_U
-    camera_->setPropertyFromParam(cv::CAP_PROP_WHITE_BALANCE_U, "cv_cap_prop_white_balance_u");
-#endif  // CV_CAP_PROP_WHITE_BALANCE_U
-#ifdef CV_CAP_PROP_WHITE_BALANCE_V
-    camera_->setPropertyFromParam(cv::CAP_PROP_WHITE_BALANCE_V, "cv_cap_prop_white_balance_v");
-#endif  // CV_CAP_PROP_WHITE_BALANCE_V
-#ifdef CV_CAP_PROP_BUFFERSIZE
-    camera_->setPropertyFromParam(cv::CAP_PROP_BUFFERSIZE, "cv_cap_prop_buffersize");
-#endif  // CV_CAP_PROP_BUFFERSIZE
 
   rate_.reset(new rclcpp::Rate(hz_read));
   return true;
