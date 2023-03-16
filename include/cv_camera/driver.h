@@ -39,7 +39,7 @@ class Driver : public rclcpp::Node
  private:
   /**
    * @brief ROS private timer for publishing images.
-  */
+   */
   rclcpp::TimerBase::SharedPtr publish_tmr_;
   /**
    * @brief wrapper of cv::VideoCapture.
