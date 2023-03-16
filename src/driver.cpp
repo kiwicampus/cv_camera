@@ -1,6 +1,6 @@
 // Copyright [2015] Takashi Ogura<t.ogura@gmail.com>
 
-#include "cv_camera/driver.hpp"
+#include "cv_camera/driver.h"
 #include <string>
 
 namespace {
@@ -53,35 +53,35 @@ bool Driver::setup()
     // Get Custom Parameters
     this->get_parameter("publish_rate", hz_pub);
     this->get_parameter("read_rate", hz_read);
-    this->get_parameter("device_id", device_id);
+    this->get_parameter("device_id", device_id_);
     // this->get_parameter("frame_id", frame_id);
-    this->get_parameter("topic_name", topic_name);
-    this->get_parameter("name", name);
-    this->get_parameter("video_stream_recovery_time", m_video_stream_recovery_time);
-    this->get_parameter("video_stream_recovery_tries", m_video_stream_recovery_tries);
+    this->get_parameter("topic_name", topic_name_);
+    this->get_parameter("name", name_);
+    this->get_parameter("video_stream_recovery_time", video_stream_recovery_time_);
+    this->get_parameter("video_stream_recovery_tries", video_stream_recovery_tries_);
 
 
     // Timers
-    m_proceed_tmr =
+    proceed_tmr_ =
         this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / hz_read)), std::bind(&Driver::proceed, this));
 
-    camera_.reset(new Capture(shared_from_this(), topic_name, PUBLISHER_BUFFER_SIZE, frame_id));
+    camera_.reset(new Capture(shared_from_this(), topic_name_, PUBLISHER_BUFFER_SIZE, frame_id));
 
     if (this->get_parameter("file", file_path) && file_path != "")
     {
         camera_->openFile(file_path);
     }
-    else if (device_id >= 0)
+    else if (device_id_ >= 0)
     {
-        if (!camera_->open(device_id))
+        if (!camera_->open(device_id_))
         {
             RCLCPP_WARN(get_logger(), "Couldnt open camera by device id");
             return false;
         }
     }
-    else if (this->get_parameter("port", port) && port != "")
+    else if (this->get_parameter("port", port_) && port_ != "")
     {
-        if (!camera_->open(port))
+        if (!camera_->open(port_))
         {
             RCLCPP_WARN(get_logger(), "Couldnt open camera by port");
             return false;
@@ -107,11 +107,11 @@ bool Driver::setup()
     camera_->setPropertyFromParam(cv::CAP_PROP_RECTIFICATION, "cv_cap_prop_rectification");
     camera_->setPropertyFromParam(cv::CAP_PROP_ISO_SPEED, "cv_cap_prop_iso_speed");
 
-    m_pub_cam_status = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping/" + name + "/status", 1);
+    pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping/" + name_ + "/status", 1);
 
-    cam_status = std::make_shared<std_msgs::msg::UInt8>();
-    cam_status->data = 1;
-    m_pub_cam_status->publish(*cam_status);
+    cam_status_ = std::make_shared<std_msgs::msg::UInt8>();
+    cam_status_->data = 1;
+    pub_cam_status_->publish(*cam_status_);
 
     publish_tmr_ = this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / hz_pub)), [&]() {
         if (camera_->capture())
@@ -136,29 +136,29 @@ void Driver::proceed()
 {
     if (!camera_->grab())
     {
-        std::chrono::milliseconds video_recovery_time(m_video_stream_recovery_time * 1000);
+        std::chrono::milliseconds video_recovery_time(video_stream_recovery_time_ * 1000);
 
-        while ((!camera_->open(port)) && m_reconnection_attempts < m_video_stream_recovery_tries)
+        while ((!camera_->open(port_)) && reconnection_attempts_ < video_stream_recovery_tries_)
         {
-            m_reconnection_attempts += 1;
-            RCLCPP_ERROR(get_logger(), "not possible to open %s. (device %s), retrying... %d/%d ", name.c_str(),
-                         port.c_str(), m_reconnection_attempts, m_video_stream_recovery_tries);
-            camera_->open(port);
+            reconnection_attempts_ += 1;
+            RCLCPP_ERROR(get_logger(), "not possible to open %s. (device %s), retrying... %d/%d ", name_.c_str(),
+                         port_.c_str(), reconnection_attempts_, video_stream_recovery_tries_);
+            camera_->open(port_);
             std::this_thread::sleep_for(video_recovery_time);
-            cam_status->data = 2;
-            m_pub_cam_status->publish(*cam_status);
+            cam_status_->data = 2;
+            pub_cam_status_->publish(*cam_status_);
         }
-        if (m_reconnection_attempts >= m_video_stream_recovery_tries)
+        if (reconnection_attempts_ >= video_stream_recovery_tries_)
         {
-            RCLCPP_ERROR(get_logger(), "%s camera Lost", name.c_str());
-            m_reconnection_attempts = 0;
+            RCLCPP_ERROR(get_logger(), "%s camera Lost", name_.c_str());
+            reconnection_attempts_ = 0;
             camera_->close();
-            cam_status->data = 3;
-            m_pub_cam_status->publish(*cam_status);
-            m_proceed_tmr->cancel();
+            cam_status_->data = 3;
+            pub_cam_status_->publish(*cam_status_);
+            proceed_tmr_->cancel();
             return;
         }
-        m_reconnection_attempts = 0;
+        reconnection_attempts_ = 0;
     };
     rate_->sleep();
 }

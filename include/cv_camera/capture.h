@@ -110,14 +110,14 @@ public:
    * @return true if success to capture, false if not captured.
    */
   bool capture();
-  
+
   /**
    * @brief pull an image from the camera but dont decode it
    *
    * @return true if success to pull, false if not pulled.
    */
   bool grab();
-  
+
   /**
    * @brief Publish the image that is already captured by capture().
    *

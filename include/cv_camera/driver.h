@@ -22,9 +22,9 @@ class Driver : public rclcpp::Node
   explicit Driver(const rclcpp::NodeOptions& options);
   ~Driver();
 
-  rclcpp::TimerBase::SharedPtr m_proceed_tmr; /*!< @sa proceed() */
+  rclcpp::TimerBase::SharedPtr proceed_tmr_; /*!< @sa proceed() */
 
-  rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr m_pub_cam_status;
+  rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr pub_cam_status_;
 
   /**
    * @brief Setup camera device and ROS parameters.
@@ -45,27 +45,32 @@ class Driver : public rclcpp::Node
    * @brief wrapper of cv::VideoCapture.
    */
   std::shared_ptr<Capture> camera_;
-  
+
   /**
    * @brief publishing rate.
    */
   std::shared_ptr<rclcpp::Rate> rate_;
+
   /**
    * @brief camera port.
    */
-  std::string port;
+  std::string port_;
+
   /**
    * @brief camera device id /dev/videoX.
    */
-  int32_t device_id;
+  int32_t device_id_;
+
   /**
    * @brief Topic name.
    */
-  std::string topic_name;
+  std::string topic_name_;
+
   /**
    * @brief Camera name.
    */
-  std::string name;
+  std::string name_;
+
   /**
    * @brief camera status
      Subscription to get cameras status from video_mapping
@@ -76,16 +81,17 @@ class Driver : public rclcpp::Node
      3 -> Offline/Lost  [No for stereo]
      4 -> Lecture Error [No for stereo]
   */
-  std::shared_ptr<std_msgs::msg::UInt8> cam_status;
+  std::shared_ptr<std_msgs::msg::UInt8> cam_status_;
   /**
    * @brief Environment variables
    */
-  int m_video_stream_recovery_time;
-  int m_video_stream_recovery_tries;
+  int video_stream_recovery_time_;
+  int video_stream_recovery_tries_;
+
   /**
    * @brief Reconnection attempts to open a camera port
    */
-  int m_reconnection_attempts = 0;
+  int reconnection_attempts_ = 0;
 };
 
 }  // namespace cv_camera
