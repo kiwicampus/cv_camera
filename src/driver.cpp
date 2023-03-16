@@ -64,7 +64,7 @@ bool Driver::setup()
                             topic_name_,
                             PUBLISHER_BUFFER_SIZE,
                             frame_id));
-  
+
   if (this->get_parameter("file", file_path) && file_path != "")
   {
     camera_->openFile(file_path);
@@ -102,17 +102,18 @@ bool Driver::setup()
   camera_->setPropertyFromParam(cv::CAP_PROP_GAIN, "cv_cap_prop_gain");
   camera_->setPropertyFromParam(cv::CAP_PROP_EXPOSURE, "cv_cap_prop_exposure");
   camera_->setPropertyFromParam(cv::CAP_PROP_CONVERT_RGB, "cv_cap_prop_convert_rgb");
+
   camera_->setPropertyFromParam(cv::CAP_PROP_RECTIFICATION, "cv_cap_prop_rectification");
   camera_->setPropertyFromParam(cv::CAP_PROP_ISO_SPEED, "cv_cap_prop_iso_speed");
 #ifdef CV_CAP_PROP_WHITE_BALANCE_U
-    camera_->setPropertyFromParam(cv::CAP_PROP_WHITE_BALANCE_U, "cv_cap_prop_white_balance_u");
-#endif  // CV_CAP_PROP_WHITE_BALANCE_U
+  camera_->setPropertyFromParam(cv::CAP_PROP_WHITE_BALANCE_U, "cv_cap_prop_white_balance_u");
+#endif // CV_CAP_PROP_WHITE_BALANCE_U
 #ifdef CV_CAP_PROP_WHITE_BALANCE_V
-    camera_->setPropertyFromParam(cv::CAP_PROP_WHITE_BALANCE_V, "cv_cap_prop_white_balance_v");
-#endif  // CV_CAP_PROP_WHITE_BALANCE_V
+  camera_->setPropertyFromParam(cv::CAP_PROP_WHITE_BALANCE_V, "cv_cap_prop_white_balance_v");
+#endif // CV_CAP_PROP_WHITE_BALANCE_V
 #ifdef CV_CAP_PROP_BUFFERSIZE
-    camera_->setPropertyFromParam(cv::CAP_PROP_BUFFERSIZE, "cv_cap_prop_buffersize");
-#endif  // CV_CAP_PROP_BUFFERSIZE
+  camera_->setPropertyFromParam(cv::CAP_PROP_BUFFERSIZE, "cv_cap_prop_buffersize");
+#endif // CV_CAP_PROP_BUFFERSIZE
 
   // Timers
   proceed_tmr_ =
