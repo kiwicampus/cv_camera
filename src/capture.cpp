@@ -14,8 +14,8 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &topic_name,
     : node_(node),
       it_(node_),
       topic_name_(topic_name),
-      buffer_size_(buffer_size),
       frame_id_(frame_id),
+      buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
       capture_delay_(rclcpp::Duration(0, 0.0))
 {
