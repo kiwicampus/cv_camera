@@ -54,6 +54,8 @@ bool Driver::setup()
   this->get_parameter("publish_rate", hz_pub);
   this->get_parameter("read_rate", hz_read);
   this->get_parameter("device_id", device_id_);
+  this->get_parameter("port", port_);
+  this->get_parameter("file", file_path);
   // this->get_parameter("frame_id", frame_id);
   this->get_parameter("topic_name", topic_name_);
   this->get_parameter("name", name_);
@@ -65,7 +67,7 @@ bool Driver::setup()
                             frame_id,
                             PUBLISHER_BUFFER_SIZE));
 
-  if (this->get_parameter("file", file_path) && file_path != "")
+  if (file_path != "")
   {
     camera_->openFile(file_path);
   }
@@ -77,7 +79,7 @@ bool Driver::setup()
       return false;
     }
   }
-  else if (this->get_parameter("port", port_) && port_ != "")
+  else if (port_ != "")
   {
     if (!camera_->open(port_))
     {
