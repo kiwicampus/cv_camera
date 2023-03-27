@@ -20,7 +20,7 @@ running_device = os.getenv(key="BOARD_VERSION", default="local")
 camera_handlers = find_cameras(
     running_device=running_device,
     ports_file=os.path.join(
-        get_package_share_directory("vision_bringup"), "launch", "vision_ports.yaml"
+        get_package_share_directory("cv_camera"), "launch", "vision_ports.yaml"
     ),
 )
 

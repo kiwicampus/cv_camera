@@ -85,7 +85,8 @@ def find_cameras(running_device: str, ports_file: str) -> Dict[str, Union[str, i
         Camera(camera_label, device_number, cam_port, camera_format)
         for device_number, camera_label, camera_format, cam_port in zip(
             video_numbers, non_stereo_labels, cams_formats, cams_ports
-        ) if device_number is not None
+        )
+        if device_number is not None
     ]
 
     if not camera_handlers:
