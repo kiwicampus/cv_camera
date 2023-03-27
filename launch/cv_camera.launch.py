@@ -3,12 +3,8 @@ import os
 import cv2
 
 from ament_index_python.packages import get_package_share_directory
-from launch_ros.actions import LoadComposableNodes, Node, ComposableNodeContainer
-from launch.actions import (
-    DeclareLaunchArgument,
-    # SetEnvironmentVariable,
-    GroupAction,
-)
+from launch_ros.actions import LoadComposableNodes, Node
+from launch.actions import DeclareLaunchArgument, GroupAction
 from launch.conditions import IfCondition, UnlessCondition
 from launch_ros.descriptions import ComposableNode
 from launch.substitutions import LaunchConfiguration
@@ -28,9 +24,8 @@ camera_handlers = find_cameras(
     ),
 )
 
-def generate_launch_description():
 
-    use_respawn = LaunchConfiguration("use_respawn")
+def generate_launch_description():
 
     vision_config = os.path.join(
         get_package_share_directory("vision_bringup"), "launch", "vision_params.yaml"
@@ -57,16 +52,6 @@ def generate_launch_description():
     return LaunchDescription(
         [
             # -------------- COMPOSITION -------------------------------
-            DeclareLaunchArgument(
-                "use_composition",
-                default_value="True",
-                description="Whether to use node composition",
-            ),
-            DeclareLaunchArgument(
-                "use_respawn",
-                default_value="True",
-                description="Whether to respawn if a node crashes. Applied when composition is disabled.",
-            ),
             GroupAction(
                 condition=IfCondition(LaunchConfiguration("use_composition")),
                 actions=[
@@ -114,7 +99,7 @@ def generate_launch_description():
                         executable="cv_camera_node",
                         name=f"{camera.label}",
                         output="screen",
-                        respawn=use_respawn,
+                        respawn=LaunchConfiguration("use_respawn"),
                         respawn_delay=2.0,
                     )
                     for camera in camera_handlers
