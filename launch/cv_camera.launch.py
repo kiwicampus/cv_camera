@@ -24,7 +24,7 @@ running_device = os.getenv(key="BOARD_VERSION", default="local")
 camera_handlers = find_cameras(
     running_device=running_device,
     ports_file=os.path.join(
-        get_package_share_directory("video_mapping"), "launch", "vision_ports.yaml"
+        get_package_share_directory("vision_bringup"), "launch", "vision_ports.yaml"
     ),
 )
 
@@ -33,7 +33,7 @@ def generate_launch_description():
     use_respawn = LaunchConfiguration("use_respawn")
 
     vision_config = os.path.join(
-        get_package_share_directory("video_mapping"), "launch", "vision_params.yaml"
+        get_package_share_directory("vision_bringup"), "launch", "vision_params.yaml"
     )
     vision_param_yaml = read_cams_ports(vision_config)
 
@@ -70,12 +70,12 @@ def generate_launch_description():
             GroupAction(
                 condition=IfCondition(LaunchConfiguration("use_composition")),
                 actions=[
-                    Node(
-                        name="vision_kronos",
-                        package="rclcpp_components",
-                        executable="component_container",
-                        output="both",
-                    ),
+                    # Node(
+                    #     name="vision_kronos",
+                    #     package="rclcpp_components",
+                    #     executable="component_container",
+                    #     output="both",
+                    # ),
                     LoadComposableNodes(
                         target_container="vision_kronos",
                         composable_node_descriptions=[
