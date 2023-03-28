@@ -3,7 +3,7 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import LoadComposableNodes, Node
-from launch.actions import GroupAction
+from launch.actions import GroupAction, DeclareLaunchArgument
 from launch.conditions import IfCondition, UnlessCondition
 from launch_ros.descriptions import ComposableNode
 from launch.substitutions import LaunchConfiguration
@@ -25,12 +25,40 @@ camera_handlers = find_cameras(
 
 def generate_launch_description():
 
-    vision_config = os.path.join(
-        get_package_share_directory("vision_bringup"), "params", "vision_params.yaml"
-    )
+    use_sim_time = LaunchConfiguration("use_sim_time")
+    params_file = LaunchConfiguration("params_file")
+    use_respawn = LaunchConfiguration("use_respawn")
+    use_composition = LaunchConfiguration("use_composition")
+
+    if not camera_handlers:
+        return LaunchDescription()
 
     return LaunchDescription(
         [
+            DeclareLaunchArgument(
+                "use_sim_time",
+                default_value="True",
+                description="Use simulation (Gazebo) clock if True",
+            ),
+            DeclareLaunchArgument(
+                "params_file",
+                default_value=os.path.join(
+                    get_package_share_directory("vision_bringup"),
+                    "params",
+                    "vision_params.yaml",
+                ),
+                description="Full path to the ROS2 parameters file to use for all launched nodes",
+            ),
+            DeclareLaunchArgument(
+                "use_composition",
+                default_value="True",
+                description="Whether to use composition or not",
+            ),
+            DeclareLaunchArgument(
+                "use_respawn",
+                default_value="True",
+                description="Whether to respawn nodes or not",
+            ),
             # -------------- COMPOSITION -------------------------------
             GroupAction(
                 condition=IfCondition(LaunchConfiguration("use_composition")),
@@ -46,7 +74,7 @@ def generate_launch_description():
                         composable_node_descriptions=[
                             ComposableNode(
                                 parameters=[
-                                    vision_config,
+                                    params_file,
                                     {
                                         "device_id": camera.device_id,
                                         "port": camera.port,
@@ -69,7 +97,7 @@ def generate_launch_description():
                 actions=[
                     Node(
                         parameters=[
-                            vision_config,
+                            params_file,
                             {
                                 "device_id": camera.device_id,
                                 "port": camera.port,
