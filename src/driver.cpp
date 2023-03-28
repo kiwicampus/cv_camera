@@ -48,7 +48,8 @@ bool Driver::setup()
   // this->declare_parameter("frame_id", "camera");
   this->declare_parameter("width", 640.0);
   this->declare_parameter("height", 360.0);
-  this->declare_parameter("fourcc", (double)cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+  this->declare_parameter("fourcc", rclcpp::PARAMETER_STRING_ARRAY);
+  this->declare_parameter("cv_cap_prop_fourcc", 0.0);
 
   // Get Custom Parameters
   this->get_parameter("publish_rate", hz_pub);
@@ -59,8 +60,13 @@ bool Driver::setup()
   // this->get_parameter("frame_id", frame_id);
   this->get_parameter("topic_name", topic_name_);
   this->get_parameter("name", name_);
+  this->get_parameter("fourcc", fourcc_);
   this->get_parameter("video_stream_recovery_time", video_stream_recovery_time_);
   this->get_parameter("video_stream_recovery_tries", video_stream_recovery_tries_);
+
+  // Decode fourcc as CV2 only accepts double for its parameters
+  this->set_parameter(rclcpp::Parameter("cv_cap_prop_fourcc", (double)cv::VideoWriter::fourcc(
+                      *fourcc_[0].c_str(), *fourcc_[1].c_str(), *fourcc_[2].c_str(), *fourcc_[3].c_str())));
 
   camera_.reset(new Capture(shared_from_this(),
                             topic_name_,
@@ -93,7 +99,7 @@ bool Driver::setup()
   camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "width");
   camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "height");
   camera_->setPropertyFromParam(cv::CAP_PROP_FPS, "cv_cap_prop_fps");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FOURCC, "fourcc");
+  camera_->setPropertyFromParam(cv::CAP_PROP_FOURCC, "cv_cap_prop_fourcc");
   camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_COUNT, "cv_cap_prop_frame_count");
   camera_->setPropertyFromParam(cv::CAP_PROP_FORMAT, "cv_cap_prop_format");
   camera_->setPropertyFromParam(cv::CAP_PROP_MODE, "cv_cap_prop_mode");

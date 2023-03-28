@@ -6,7 +6,7 @@ zoom:
     flip: 0
     width: 640.0
     height: 360.0
-    fourcc: MJPG # 1196444237.0
+    fourcc: [M, J, P, G] # 1196444237.0
     topic_name: /video_mapping/zoom/image_raw
     cam_info_topic: None
     cam_info_period: 5
@@ -32,7 +32,7 @@ left:
     flip: 0
     width: 640.0
     height: 360.0
-    fourcc: MJPG # 1196444237.0
+    fourcc: [M, J, P, G] # 1196444237.0
     topic_name: /video_mapping/left/image_raw
     cam_info_topic: None
     cam_info_period: 5
@@ -58,7 +58,7 @@ right:
     flip: 0
     width: 640.0
     height: 360.0
-    fourcc: MJPG # 1196444237.0
+    fourcc: [M, J, P, G] # 1196444237.0
     topic_name: /video_mapping/right/image_raw
     cam_info_topic: None
     cam_info_period: 5
@@ -84,7 +84,7 @@ back:
     flip: 0
     width: 640.0
     height: 360.0
-    fourcc: MJPG # 1196444237.0
+    fourcc: [M, J, P, G] # 1196444237.0
     topic_name: /video_mapping/back/image_raw
     cam_info_topic: None
     cam_info_period: 5
@@ -110,7 +110,7 @@ inner:
     flip: 0
     width: 640.0
     height: 360.0
-    fourcc: MJPG # 1196444237.0
+    fourcc: [M, J, P, G] # 1196444237.0
     topic_name: /video_mapping/inner/image_raw
     cam_info_topic: None
     cam_info_period: 5

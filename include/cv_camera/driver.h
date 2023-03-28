@@ -72,6 +72,11 @@ class Driver : public rclcpp::Node
   std::string name_;
 
   /**
+   * @brief Fourcc vector to be used in cv::VideoCapture::set
+   */
+  std::vector<std::string> fourcc_;
+
+  /**
    * @brief camera status
      Subscription to get cameras status from video_mapping
      -1 -> Unknown
