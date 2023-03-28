@@ -26,7 +26,7 @@ camera_handlers = find_cameras(
 def generate_launch_description():
 
     vision_config = os.path.join(
-        get_package_share_directory("vision_bringup"), "launch", "vision_params.yaml"
+        get_package_share_directory("vision_bringup"), "params", "vision_params.yaml"
     )
 
     return LaunchDescription(
