@@ -30,9 +30,7 @@ bool Driver::setup()
   this->declare_parameter("publish_rate", 10.0);
   this->declare_parameter("read_rate", 30.0);
   this->declare_parameter("flip", 0);
-  this->declare_parameter("topic_name", "/video_mapping/test");
   this->declare_parameter("cam_info_topic", "None");
-  this->declare_parameter("topic_sim", "/gazebo/streaming_cam_test/image_raw");
   this->declare_parameter("cam_info_period", 5);
   this->declare_parameter("intrinsic", false);
   this->declare_parameter("video_path", "None");
@@ -58,7 +56,6 @@ bool Driver::setup()
   this->get_parameter("port", port_);
   this->get_parameter("file", file_path);
   // this->get_parameter("frame_id", frame_id);
-  this->get_parameter("topic_name", topic_name_);
   this->get_parameter("name", name_);
   this->get_parameter("fourcc", fourcc_);
   this->get_parameter("video_stream_recovery_time", video_stream_recovery_time_);
@@ -69,7 +66,7 @@ bool Driver::setup()
                       *fourcc_[0].c_str(), *fourcc_[1].c_str(), *fourcc_[2].c_str(), *fourcc_[3].c_str())));
 
   camera_.reset(new Capture(shared_from_this(),
-                            topic_name_,
+                            "/video_mapping/" + name_ + "/image_raw",
                             frame_id,
                             PUBLISHER_BUFFER_SIZE));
 
