@@ -120,9 +120,8 @@ install(DIRECTORY include/${PROJECT_NAME}/
   )
 
 install(DIRECTORY
-  launch
-  DESTINATION share/${PROJECT_NAME}
-  )
+  params
+  DESTINATION share/${PROJECT_NAME})
 
 ament_export_include_directories(include)
 
