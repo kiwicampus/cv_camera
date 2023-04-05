@@ -160,13 +160,13 @@ bool Capture::openFile(const std::string &file_path)
 
 bool Capture::capture()
 {
-  if (cap_.retrieve(bridge_.image)) // how about changing retrieve to read?
+  if (cap_.read(bridge_.image))
   {
     sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
 
     // Pack the OpenCV image into the ROS image.
     set_now(msg->header.stamp);
-    msg->header.frame_id = "camera_frame";
+    msg->header.frame_id = frame_id_;
     msg->height = bridge_.image.rows;
     msg->width = bridge_.image.cols;
     msg->encoding = mat_type2encoding(bridge_.image.type());
@@ -189,10 +189,6 @@ void Capture::close()
   }
 }
 
-void Capture::publish()
-{
-  pub_.publish(*getImageMsgPtr(), info_);
-}
 
 bool Capture::setPropertyFromParam(int property_id, const std::string &param_name)
 {
@@ -206,15 +202,6 @@ bool Capture::setPropertyFromParam(int property_id, const std::string &param_nam
     }
   }
   return true;
-}
-
-bool Capture::grab()
-{
-  if (!cap_.isOpened())
-  {
-    return false;
-  }
-  return cap_.grab();
 }
 
 std::string Capture::execute_command(const char* command)

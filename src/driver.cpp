@@ -20,8 +20,8 @@ Driver::Driver(const rclcpp::NodeOptions& options) : Node("cv_camera", options)
 
 bool Driver::setup()
 {
-  double hz_pub(DEFAULT_RATE), hz_read(DEFAULT_RATE);
-  std::string frame_id("camera");
+  double hz_pub(DEFAULT_RATE);
+  std::string frame_id("camera_id");
   std::string file_path("");
 
   // Declare Custom Parameters
@@ -43,7 +43,7 @@ bool Driver::setup()
   this->declare_parameter("video_stream_recovery_time", 2);
   this->declare_parameter("video_stream_recovery_tries", 10);
   this->declare_parameter("file_path", "");
-  // this->declare_parameter("frame_id", "camera");
+  this->declare_parameter("frame_id", "camera_id");
   this->declare_parameter("width", 640.0);
   this->declare_parameter("height", 360.0);
   this->declare_parameter("fourcc", rclcpp::PARAMETER_STRING_ARRAY);
@@ -51,11 +51,10 @@ bool Driver::setup()
 
   // Get Custom Parameters
   this->get_parameter("publish_rate", hz_pub);
-  this->get_parameter("read_rate", hz_read);
   this->get_parameter("device_id", device_id_);
   this->get_parameter("port", port_);
   this->get_parameter("file", file_path);
-  // this->get_parameter("frame_id", frame_id);
+  this->get_parameter("frame_id", frame_id);
   this->get_parameter("name", name_);
   this->get_parameter("fourcc", fourcc_);
   this->get_parameter("video_stream_recovery_time", video_stream_recovery_time_);
@@ -118,10 +117,9 @@ bool Driver::setup()
 #ifdef CV_CAP_PROP_BUFFERSIZE
     camera_->setPropertyFromParam(cv::CAP_PROP_BUFFERSIZE, "cv_cap_prop_buffersize");
 #endif  // CV_CAP_PROP_BUFFERSIZE
-
   // Timers
-  proceed_tmr_ =
-    this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / hz_read)), std::bind(&Driver::proceed, this));
+  publish_tmr_ =
+    this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / hz_pub)), std::bind(&Driver::proceed, this));
 
   // Publishers
   pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping/" + name_ + "/status", 1);
@@ -130,19 +128,13 @@ bool Driver::setup()
   cam_status_->data = 1;
   pub_cam_status_->publish(*cam_status_);
 
-  publish_tmr_ = this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / hz_pub)), [&]() {
-    if (camera_->capture())
-    {
-    }
-  });
-
-  rate_.reset(new rclcpp::Rate(hz_read));
+  // rate_.reset(new rclcpp::Rate(hz_pub));
   return true;
 }
 
 void Driver::proceed()
 {
-  if (!camera_->grab())
+  if (!camera_->capture())
   {
     std::chrono::milliseconds video_recovery_time(video_stream_recovery_time_ * 1000);
 
@@ -168,7 +160,7 @@ void Driver::proceed()
     }
     reconnection_attempts_ = 0;
   };
-  rate_->sleep();
+  // rate_->sleep();
 }
 
 Driver::~Driver()
