@@ -148,15 +148,21 @@ void Driver::proceed()
       cam_status_->data = 2;
       pub_cam_status_->publish(*cam_status_);
     }
-    if (reconnection_attempts_ >= video_stream_recovery_tries_)
+    if (reconnection_attempts_ >= video_stream_recovery_tries_ && !camera_->capture())
     {
       RCLCPP_ERROR(get_logger(), "%s camera Lost", name_.c_str());
       reconnection_attempts_ = 0;
       camera_->close();
       cam_status_->data = 3;
       pub_cam_status_->publish(*cam_status_);
-      proceed_tmr_->cancel();
+      publish_tmr_->cancel();
       return;
+    }
+    else
+    {
+      RCLCPP_WARN(get_logger(), "%s camera recovered", name_.c_str());
+      cam_status_->data = 1;
+      pub_cam_status_->publish(*cam_status_);
     }
     reconnection_attempts_ = 0;
   };
