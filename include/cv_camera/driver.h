@@ -22,7 +22,6 @@ class Driver : public rclcpp::Node
   explicit Driver(const rclcpp::NodeOptions& options);
   ~Driver();
 
-  rclcpp::TimerBase::SharedPtr proceed_tmr_; /*!< @sa proceed() */
 
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr pub_cam_status_;
 
