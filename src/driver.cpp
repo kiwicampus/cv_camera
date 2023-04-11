@@ -156,7 +156,6 @@ void Driver::proceed()
       cam_status_->data = 3;
       pub_cam_status_->publish(*cam_status_);
       publish_tmr_->cancel();
-      return;
     }
     else
     {
