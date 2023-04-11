@@ -15,9 +15,6 @@
 #include <camera_info_manager/camera_info_manager.hpp>
 #include "std_msgs/msg/u_int8.hpp"
 
-// Custom libraries
-#include "utils/console.hpp"
-
 /**
  * @brief namespace of this package
  */
