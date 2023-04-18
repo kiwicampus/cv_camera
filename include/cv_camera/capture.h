@@ -15,6 +15,8 @@
 #include <camera_info_manager/camera_info_manager.hpp>
 #include "std_msgs/msg/u_int8.hpp"
 
+#include "utils/parameters.hpp"
+
 /**
  * @brief namespace of this package
  */

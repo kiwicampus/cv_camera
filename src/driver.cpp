@@ -20,49 +20,49 @@ Driver::Driver(const rclcpp::NodeOptions& options) : Node("cv_camera", options)
 
 bool Driver::setup()
 {
-  double hz_pub(DEFAULT_RATE);
+  float hz_pub(DEFAULT_RATE), hz_read(DEFAULT_RATE);
   std::string frame_id("camera_id");
   std::string file_path("");
 
   // Declare Custom Parameters
-  this->declare_parameter("port", "");
   this->declare_parameter("name", "cam_name");
-  this->declare_parameter("publish_rate", 10.0);
-  this->declare_parameter("read_rate", 30.0);
-  this->declare_parameter("flip", 0);
-  this->declare_parameter("cam_info_topic", "None");
-  this->declare_parameter("cam_info_period", 5);
-  this->declare_parameter("intrinsic", false);
-  this->declare_parameter("video_path", "None");
-  this->declare_parameter("object_detection", false);
-  this->declare_parameter("semantic_segmentation", false);
-  this->declare_parameter("qr_scan", false);
-  this->declare_parameter("data_capture_csv", false);
-  this->declare_parameter("data_capture_video", false);
+  this->declare_parameter("port", "");
   this->declare_parameter("device_id", -1);
-  this->declare_parameter("video_stream_recovery_time", 2);
-  this->declare_parameter("video_stream_recovery_tries", 10);
-  this->declare_parameter("file_path", "");
-  this->declare_parameter("frame_id", "camera_id");
+  this->get_parameter("name", name_);
+  this->get_parameter("device_id", device_id_);
+  this->get_parameter("port", port_);
+
+  // openCV Parameters
   this->declare_parameter("width", 640.0);
   this->declare_parameter("height", 360.0);
   this->declare_parameter("fourcc", rclcpp::PARAMETER_STRING_ARRAY);
   this->declare_parameter("cv_cap_prop_fourcc", 0.0);
-
-  // Get Custom Parameters
-  this->get_parameter("publish_rate", hz_pub);
-  this->get_parameter("device_id", device_id_);
-  this->get_parameter("port", port_);
-  this->get_parameter("file", file_path);
-  this->get_parameter("frame_id", frame_id);
-  this->get_parameter("name", name_);
   this->get_parameter("fourcc", fourcc_);
-  this->get_parameter("video_stream_recovery_time", video_stream_recovery_time_);
-  this->get_parameter("video_stream_recovery_tries", video_stream_recovery_tries_);
-
   // Decode fourcc as CV2 only accepts double for its parameters
   this->set_parameter(rclcpp::Parameter("cv_cap_prop_fourcc", (double)cv::VideoWriter::fourcc(
                       *fourcc_[0].c_str(), *fourcc_[1].c_str(), *fourcc_[2].c_str(), *fourcc_[3].c_str())));
+
+  // Environment Variables | ROS Parameters
+  param_manager_ = NodeParamManager(this);
+  // param_manager_.addParameter<std::string>(name_, name_+".name", "cam_name");
+  // param_manager_.addParameter<std::string>(port_, name_+".port", "");
+  // param_manager_.addParameter(device_id_, name_+".device_id", -1);
+  param_manager_.addParameter(hz_pub, name_+".publish_rate", 15.0f);
+  param_manager_.addParameter(hz_read, name_+".read_rate", 15.0f);
+  param_manager_.addParameter<std::string>(cam_info_topic_, name_+".cam_info_topic", "");
+  param_manager_.addParameter(cam_info_period_, name_+".cam_info_period", 5);
+  param_manager_.addParameter(flip_, name_+".flip", false);
+  param_manager_.addParameter(intrinsic_, name_+".intrinsic", true);
+  param_manager_.addParameter<std::string>(file_path, name_+".file", "");
+  param_manager_.addParameter<std::string>(video_path_, name_+".video_path", "");
+  param_manager_.addParameter<std::string>(frame_id, name_+".frame_id", "camera_id");
+  param_manager_.addParameter(video_stream_recovery_time_, name_+".video_stream_recovery_time", 2);
+  param_manager_.addParameter(video_stream_recovery_tries_, name_+".video_stream_recovery_tries", 10);
+
+  // Services
+   params_callback_handle_ =
+    this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
+
 
   camera_.reset(new Capture(shared_from_this(),
                             "/video_mapping/" + name_ + "/image_raw",
@@ -166,6 +166,13 @@ void Driver::proceed()
     reconnection_attempts_ = 0;
   };
   // rate_->sleep();
+}
+
+rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector<rclcpp::Parameter>& parameters)
+{
+    auto result = param_manager_.parametersCb(parameters);
+    /* Some extra logic after catch the new values if you need it */
+    return result;
 }
 
 Driver::~Driver()

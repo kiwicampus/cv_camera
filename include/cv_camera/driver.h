@@ -58,7 +58,7 @@ class Driver : public rclcpp::Node
   /**
    * @brief camera device id /dev/videoX.
    */
-  int32_t device_id_;
+  int device_id_;
 
   /**
    * @brief Topic name.
@@ -69,6 +69,33 @@ class Driver : public rclcpp::Node
    * @brief Camera name.
    */
   std::string name_;
+
+  /**
+   * @brief Camera frame_id.
+   */
+  std::string frame_id_;
+
+  /**
+   * @brief Flip image.
+  */
+  bool flip_;
+  /**
+   * @brief Video path
+  */
+  std::string video_path_;
+
+  /**
+   * @brief Camera info topic
+  */
+  std::string cam_info_topic_;
+  /**
+   * @brief Camera info period
+  */
+  int cam_info_period_;
+  /**
+   * @brief Camera intrinsic parameters available
+  */
+  bool intrinsic_;
 
   /**
    * @brief Fourcc vector to be used in cv::VideoCapture::set
@@ -96,6 +123,15 @@ class Driver : public rclcpp::Node
    * @brief Reconnection attempts to open a camera port
    */
   int reconnection_attempts_ = 0;
+
+  // Parameters Handling
+  NodeParamManager param_manager_;
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr params_callback_handle_;
+  /**
+   * @brief Callback executed when a parameter change is detected
+   * @param parameters list of changed parameters
+   */
+  rcl_interfaces::msg::SetParametersResult parameters_cb(const std::vector<rclcpp::Parameter>& parameters);
 };
 
 }  // namespace cv_camera

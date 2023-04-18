@@ -28,6 +28,7 @@ find_package(cv_bridge REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(camera_info_manager REQUIRED)
 find_package(builtin_interfaces REQUIRED)
+find_package(utils REQUIRED)
 
 set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS_INIT} -fPIC")
 
@@ -60,6 +61,7 @@ cv_bridge
 camera_info_manager
 std_msgs
 OpenCV
+utils
 
 )
 ## Specify libraries to link a library or executable target against
@@ -78,6 +80,7 @@ ament_target_dependencies(cv_camera_node
         "camera_info_manager"
         "image_transport"
         "cv_bridge"
+        "utils"
 )
 
 ament_export_targets(export_cv_camera_driver HAS_LIBRARY_TARGET)
