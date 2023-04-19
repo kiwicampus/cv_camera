@@ -24,15 +24,9 @@ bool Driver::setup()
   std::string frame_id("camera_id");
   std::string file_path("");
 
-  // Declare Custom Parameters
-  this->declare_parameter("name", "cam_name");
-  this->declare_parameter("port", "");
-  this->declare_parameter("device_id", -1);
-  this->get_parameter("name", name_);
-  this->get_parameter("device_id", device_id_);
-  this->get_parameter("port", port_);
+  name_ = this->get_fully_qualified_name();
 
-  // openCV Parameters
+  // OpenCV Parameters
   this->declare_parameter("width", 640.0);
   this->declare_parameter("height", 360.0);
   this->declare_parameter("fourcc", rclcpp::PARAMETER_STRING_ARRAY);
@@ -44,28 +38,26 @@ bool Driver::setup()
 
   // Environment Variables | ROS Parameters
   param_manager_ = NodeParamManager(this);
-  // param_manager_.addParameter<std::string>(name_, name_+".name", "cam_name");
-  // param_manager_.addParameter<std::string>(port_, name_+".port", "");
-  // param_manager_.addParameter(device_id_, name_+".device_id", -1);
-  param_manager_.addParameter(hz_pub, name_+".publish_rate", 15.0f);
-  param_manager_.addParameter(hz_read, name_+".read_rate", 15.0f);
-  param_manager_.addParameter<std::string>(cam_info_topic_, name_+".cam_info_topic", "");
-  param_manager_.addParameter(cam_info_period_, name_+".cam_info_period", 5);
-  param_manager_.addParameter(flip_, name_+".flip", false);
-  param_manager_.addParameter(intrinsic_, name_+".intrinsic", true);
-  param_manager_.addParameter<std::string>(file_path, name_+".file", "");
-  param_manager_.addParameter<std::string>(video_path_, name_+".video_path", "");
-  param_manager_.addParameter<std::string>(frame_id, name_+".frame_id", "camera_id");
-  param_manager_.addParameter(video_stream_recovery_time_, name_+".video_stream_recovery_time", 2);
-  param_manager_.addParameter(video_stream_recovery_tries_, name_+".video_stream_recovery_tries", 10);
+  param_manager_.addParameter<std::string>(port_, "port", "");
+  param_manager_.addParameter(device_id_, "device_id", -1);
+  param_manager_.addParameter(hz_pub, "publish_rate", 15.0f);
+  param_manager_.addParameter(hz_read, "read_rate", 15.0f);
+  param_manager_.addParameter<std::string>(cam_info_topic_, "cam_info_topic", "");
+  param_manager_.addParameter(cam_info_period_, "cam_info_period", 5);
+  param_manager_.addParameter(flip_, "flip", false);
+  param_manager_.addParameter(intrinsic_, "intrinsic", true);
+  param_manager_.addParameter<std::string>(file_path, "file", "");
+  param_manager_.addParameter<std::string>(video_path_, "video_path", "");
+  param_manager_.addParameter<std::string>(frame_id, "frame_id", "camera_id");
+  param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
+  param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
 
   // Services
    params_callback_handle_ =
     this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
 
-
   camera_.reset(new Capture(shared_from_this(),
-                            "/video_mapping/" + name_ + "/image_raw",
+                            "/video_mapping" + name_ + "/image_raw",
                             frame_id,
                             PUBLISHER_BUFFER_SIZE));
 
@@ -122,7 +114,7 @@ bool Driver::setup()
     this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / hz_pub)), std::bind(&Driver::proceed, this));
 
   // Publishers
-  pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping/" + name_ + "/status", 1);
+  pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", 1);
 
   cam_status_ = std::make_shared<std_msgs::msg::UInt8>();
   cam_status_->data = 1;
