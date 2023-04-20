@@ -181,6 +181,10 @@ bool Capture::capture()
 
     m_pub_image_ptr->publish(std::move(msg));
 
+    // Fill the cam info message.
+    set_now(info_.header.stamp);
+    info_.header.frame_id = frame_id_;
+
     m_pub_camera_info_ptr->publish(info_);
 
     return true;
