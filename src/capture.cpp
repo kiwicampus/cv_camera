@@ -170,7 +170,8 @@ bool Capture::capture()
     sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
 
     // Pack the OpenCV image into the ROS image.
-    set_now(msg->header.stamp);
+    auto timestamp = node_->now();
+    msg->header.stamp = timestamp;
     msg->header.frame_id = frame_id_;
     msg->height = bridge_.image.rows;
     msg->width = bridge_.image.cols;
@@ -182,7 +183,7 @@ bool Capture::capture()
     m_pub_image_ptr->publish(std::move(msg));
 
     // Fill the cam info message.
-    set_now(info_.header.stamp);
+    info_.header.stamp = timestamp;
     info_.header.frame_id = frame_id_;
 
     m_pub_camera_info_ptr->publish(info_);
