@@ -34,12 +34,14 @@ public:
    * @brief costruct with ros node and topic settings
    *
    * @param node ROS node handle for advertise topic.
-   * @param topic_name name of topic to publish (this may be image_raw).
+   * @param img_topic_name name of topic to publish (this may be image_raw).
+   * @param cam_info_topic_name name of topic to publish cam info (this may be camera_info).
    * @param buffer_size size of publisher buffer.
    * @param frame_id frame_id of publishing messages.
    */
   Capture(rclcpp::Node::SharedPtr node,
-          const std::string &topic_name,
+          const std::string &img_topic_name,
+          const std::string &cam_info_topic_name,
           const std::string &frame_id,
           uint32_t buffer_size);
 
@@ -240,7 +242,12 @@ private:
   /**
    * @brief name of topic without namespace (usually "image_raw").
    */
-  std::string topic_name_;
+  std::string img_topic_name_;
+
+    /**
+   * @brief name of topic without namespace (usually "camera_info").
+   */
+  std::string cam_info_topic_name_;
 
   /**
    * @brief header.frame_id for publishing images.
@@ -292,6 +299,11 @@ private:
    * @brief Final publisher for image messages
    */
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_pub_image_ptr;
+  /**
+   * @brief Final publisher for camera info messages
+   */
+  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr m_pub_camera_info_ptr;
+
 };
 
 } // namespace cv_camera

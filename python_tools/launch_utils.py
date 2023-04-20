@@ -7,6 +7,16 @@ from typing import Dict, List, Union, Tuple
 from python_utils.vision_utils import printlog
 
 
+# cam_labels remapping
+remap_label = {
+    "stereo": "S",
+    "zoom": "Z",
+    "left": "LL",
+    "right": "RR",
+    "rear": "B",
+    "inner": "I",
+}
+
 class Camera:
     def __init__(
         self,
@@ -14,14 +24,16 @@ class Camera:
         device_id: int = None,
         port: str = None,
         cam_format: str = None,
+        intrinsic_file: str = None,
     ):
         self.label = label
         self.device_id = device_id
         self.port = port
         self.cam_format = cam_format
+        self.intrinsic_file = intrinsic_file
 
 
-def find_cameras(running_device: str, ports_file: str) -> Dict[str, Union[str, int]]:
+def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file: str) -> Dict[str, Union[str, int]]:
     """!
     Finds the camera numbers and ports that correspond to real cameras
     Note: (devices may be repeated)
@@ -35,6 +47,14 @@ def find_cameras(running_device: str, ports_file: str) -> Dict[str, Union[str, i
     cam_formats = get_camera_format()
     # Reads de cameras configurations file.
     vision_ports = read_cams_ports(CONF_PATH=ports_file)
+    # Get cameras intrinsic parameters file
+    calibration_params_dict = read_fleet_config_file(
+            read_cams_configuration(
+                params_file,
+                "fleet_cams_calibration_params.yaml",
+            ),
+            bot_id
+        )
 
     # print("cams:", cams, flush=True)
     # print("avail_ports:", avail_ports, flush=True)
@@ -82,7 +102,7 @@ def find_cameras(running_device: str, ports_file: str) -> Dict[str, Union[str, i
 
     # Initializes camera objects
     camera_handlers = [
-        Camera(camera_label, device_number, cam_port, camera_format)
+        Camera(camera_label, device_number, cam_port, camera_format, os.path.join(params_file, calibration_params_dict[remap_label[camera_label]]))
         for device_number, camera_label, camera_format, cam_port in zip(
             video_numbers, non_stereo_labels, cams_formats, cams_ports
         )
@@ -231,3 +251,36 @@ def read_cams_ports(CONF_PATH: str) -> Dict[str, Dict[str, Union[str, int]]]:
     with open(CONF_PATH, "r") as stream:
         data_loaded = yaml.safe_load(stream)
         return data_loaded
+
+def read_cams_configuration(CONF_PATH: str, FILE_NAME: str) -> dict:
+
+    """!
+    Function for seting the process name
+    @param CONF_PATH `string` absolute path to configuration of cameras
+    @param FILE_NAME `string` name of cameras configuration file
+    @return data_loaded `dictionary` key: camera labels, values: dictionary with camera
+            properties and settings, see yaml file for more details
+    """
+
+    abs_path = os.path.join(CONF_PATH, FILE_NAME)
+    if os.path.isfile(abs_path):
+        with open(abs_path, "r") as stream:
+            data_loaded = yaml.safe_load(stream)
+            return data_loaded
+    else:
+        return {}
+
+def read_fleet_config_file(fleet_params_file: dict, bot_id: str) -> dict:
+    """!
+    Reads the fleet configuration file and returns a dictionary with the current bot cam configuration
+    @param params_directory: 'dict' camera configuration file
+    @param bot_id: 'str' bot id
+    @return: 'dict' dictionary with configuration parameters
+    """
+
+    # Several bot versions are in the yaml file
+    # but only the params of the current one are the ones we need.
+    for current_fleet_model in fleet_params_file.keys():
+        if current_fleet_model in bot_id:
+            return fleet_params_file[current_fleet_model]
+    return {}

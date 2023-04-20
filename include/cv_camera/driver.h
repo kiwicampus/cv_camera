@@ -93,9 +93,9 @@ class Driver : public rclcpp::Node
   */
   int cam_info_period_;
   /**
-   * @brief Camera intrinsic parameters available
+   * @brief Camera intrinsic parameters file
   */
-  bool intrinsic_;
+  std::string intrinsic_file_;
 
   /**
    * @brief Fourcc vector to be used in cv::VideoCapture::set

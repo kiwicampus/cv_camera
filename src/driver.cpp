@@ -45,7 +45,7 @@ bool Driver::setup()
   param_manager_.addParameter<std::string>(cam_info_topic_, "cam_info_topic", "");
   param_manager_.addParameter(cam_info_period_, "cam_info_period", 5);
   param_manager_.addParameter(flip_, "flip", false);
-  param_manager_.addParameter(intrinsic_, "intrinsic", true);
+  param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
   param_manager_.addParameter<std::string>(file_path, "file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
   param_manager_.addParameter<std::string>(frame_id, "frame_id", "camera_id");
@@ -58,6 +58,7 @@ bool Driver::setup()
 
   camera_.reset(new Capture(shared_from_this(),
                             "/video_mapping" + name_ + "/image_raw",
+                            "/video_mapping" + name_ + "/camera_info",
                             frame_id,
                             PUBLISHER_BUFFER_SIZE));
 
