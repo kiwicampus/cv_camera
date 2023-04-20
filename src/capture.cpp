@@ -9,18 +9,20 @@ namespace cv_camera
 
 namespace enc = sensor_msgs::image_encodings;
 
-Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &topic_name, 
+Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name,
                  const std::string &frame_id, uint32_t buffer_size)
     : node_(node),
       it_(node_),
-      topic_name_(topic_name),
+      img_topic_name_(img_topic_name),
+      cam_info_topic_name_(cam_info_topic_name),
       frame_id_(frame_id),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
       capture_delay_(rclcpp::Duration(0, 0.0))
 {
     int dur = 0;
-    m_pub_image_ptr = node->create_publisher<sensor_msgs::msg::Image>(topic_name, 1);
+    m_pub_image_ptr = node->create_publisher<sensor_msgs::msg::Image>(img_topic_name_, 1);
+    m_pub_camera_info_ptr = node->create_publisher<sensor_msgs::msg::CameraInfo>(cam_info_topic_name_, 1);
     node_->get_parameter_or("capture_delay", dur, dur);
     this->capture_delay_ = rclcpp::Duration(dur, 0.0);
 }
@@ -28,8 +30,9 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &topic_name,
 void Capture::loadCameraInfo()
 {
   std::string url;
-  if (node_->get_parameter("camera_info_url", url))
+  if (node_->get_parameter("intrinsic_file", url))
   {
+    url = "file://" + url;
     if (info_manager_.validateURL(url))
     {
       info_manager_.loadCameraInfo(url);
@@ -40,8 +43,10 @@ void Capture::loadCameraInfo()
     }
   }
 
-  rescale_camera_info_ = false;
+  rescale_camera_info_ = true;
   node_->get_parameter_or("rescale_camera_info", rescale_camera_info_, rescale_camera_info_);
+
+  info_ = info_manager_.getCameraInfo();
 
   for (int i = 0;; ++i)
   {
@@ -93,7 +98,7 @@ bool Capture::open(int32_t device_id)
   }
   else
   {
-    RCLCPP_WARN_ONCE(node_->get_logger(), "Opening topic %s: with /dev/video%d", topic_name_.c_str(), device_id);
+    RCLCPP_WARN_ONCE(node_->get_logger(), "Opening topic %s: with /dev/video%d", img_topic_name_.c_str(), device_id);
   }
   // pub_ = it_.advertiseCamera(topic_name_, buffer_size_);
   // rmw_qos_profile_t custom_qos = rmw_qos_profile_sensor_data;
@@ -175,6 +180,8 @@ bool Capture::capture()
     msg->data.assign(bridge_.image.datastart, bridge_.image.dataend);
 
     m_pub_image_ptr->publish(std::move(msg));
+
+    m_pub_camera_info_ptr->publish(info_);
 
     return true;
   }
