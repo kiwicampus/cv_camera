@@ -32,10 +32,18 @@ class Driver : public rclcpp::Node
    */
   bool setup();
   /**
-   * @brief Capture, publish and sleep
+   * @brief Grab image from camera.
+  */
+  void read();
+  /**
+   * @brief Retrieve, publish and sleep
   */
   void proceed();
  private:
+  /**
+   * @brief ROS private timer for publishing images.
+   */
+  rclcpp::TimerBase::SharedPtr read_tmr_;
   /**
    * @brief ROS private timer for publishing images.
    */
@@ -69,7 +77,14 @@ class Driver : public rclcpp::Node
    * @brief Camera name.
    */
   std::string name_;
-
+  /**
+   * @brief Publish rate
+   */
+  float publish_rate_;
+  /**
+   * @brief read rate
+  */
+  float read_rate_;
   /**
    * @brief Camera frame_id.
    */

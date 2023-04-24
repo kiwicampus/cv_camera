@@ -163,9 +163,14 @@ bool Capture::openFile(const std::string &file_path)
   return true;
 }
 
+bool Capture::grab()
+{
+  return cap_.grab();
+}
+
 bool Capture::capture()
 {
-  if (cap_.read(bridge_.image))
+  if (cap_.retrieve(bridge_.image))
   {
     sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
 

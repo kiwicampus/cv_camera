@@ -20,7 +20,6 @@ Driver::Driver(const rclcpp::NodeOptions& options) : Node("cv_camera", options)
 
 bool Driver::setup()
 {
-  float hz_pub(DEFAULT_RATE), hz_read(DEFAULT_RATE);
   std::string frame_id("camera_id");
   std::string file_path("");
 
@@ -40,8 +39,8 @@ bool Driver::setup()
   param_manager_ = NodeParamManager(this);
   param_manager_.addParameter<std::string>(port_, "port", "");
   param_manager_.addParameter(device_id_, "device_id", -1);
-  param_manager_.addParameter(hz_pub, "publish_rate", 15.0f);
-  param_manager_.addParameter(hz_read, "read_rate", 15.0f);
+  param_manager_.addParameter(publish_rate_, "publish_rate", 15.0f);
+  param_manager_.addParameter(read_rate_, "read_rate", 15.0f);
   param_manager_.addParameter<std::string>(cam_info_topic_, "cam_info_topic", "");
   param_manager_.addParameter(cam_info_period_, "cam_info_period", 5);
   param_manager_.addParameter(flip_, "flip", false);
@@ -111,8 +110,10 @@ bool Driver::setup()
     camera_->setPropertyFromParam(cv::CAP_PROP_BUFFERSIZE, "cv_cap_prop_buffersize");
 #endif  // CV_CAP_PROP_BUFFERSIZE
   // Timers
+  read_tmr_ =
+    this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / read_rate_)), std::bind(&Driver::read, this));
   publish_tmr_ =
-    this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / hz_pub)), std::bind(&Driver::proceed, this));
+    this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / publish_rate_)), std::bind(&Driver::proceed, this));
 
   // Publishers
   pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", 1);
@@ -121,8 +122,13 @@ bool Driver::setup()
   cam_status_->data = 1;
   pub_cam_status_->publish(*cam_status_);
 
-  // rate_.reset(new rclcpp::Rate(hz_pub));
+  // rate_.reset(new rclcpp::Rate(publish_rate_));
   return true;
+}
+
+void Driver::read()
+{
+  camera_->grab();
 }
 
 void Driver::proceed()
@@ -165,6 +171,34 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
 {
     auto result = param_manager_.parametersCb(parameters);
     /* Some extra logic after catch the new values if you need it */
+    // reset the timer if publishing rate changed
+    for (auto parameter : parameters) {
+    const auto & type = parameter.get_type();
+    const auto & name = parameter.get_name();
+
+
+    if (type == rclcpp::ParameterType::PARAMETER_DOUBLE) 
+    {
+      if (name == "read_rate") 
+      {
+        read_rate_ = parameter.as_double();
+        // Create timer with new read rate
+        RCLCPP_WARN(get_logger(), "Setting new read rate to %f", read_rate_);
+        read_tmr_->cancel();
+        read_tmr_ =
+          this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / read_rate_)), std::bind(&Driver::read, this));
+      } 
+      else if (name  == "publish_rate") 
+      {
+        publish_rate_ = parameter.as_double();
+        // Create timer with new publish rate
+        RCLCPP_WARN(get_logger(), "Seting new publish rate to %f", publish_rate_);
+        publish_tmr_->cancel();
+        publish_tmr_ = this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / publish_rate_)),
+                                               std::bind(&Driver::proceed, this));
+      }
+    }
+  }
     return result;
 }
 
