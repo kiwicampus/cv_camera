@@ -164,7 +164,12 @@ void Driver::proceed()
     }
     reconnection_attempts_ = 0;
   };
-  // rate_->sleep();
+
+  // Log camera starting configuration
+  RCLCPP_INFO(get_logger(), "(GOT VIDEO) %s: DEVICE:%s - SIZE:%dX%d - RATE:%d/%d - PROP_MODE:%f - EXPOSURE:%d",
+              name_.c_str(), port_.c_str(), int(camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH)),
+              int(camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT)), int(read_rate_), int(camera_->getProperty(cv::CAP_PROP_FPS)),
+              float(camera_->getProperty(cv::CAP_PROP_FOURCC)), int(camera_->getProperty(cv::CAP_PROP_AUTO_EXPOSURE)));
 }
 
 rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector<rclcpp::Parameter>& parameters)

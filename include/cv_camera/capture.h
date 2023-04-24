@@ -186,6 +186,12 @@ public:
    */
   bool setPropertyFromParam(int property_id, const std::string &param_name);
 
+  /**
+   * @brief get CV_PROP_*
+   * @return value of property
+   */
+  double getProperty(int property_id);
+
 private:
   /**
    * @brief rescale camera calibration to another resolution

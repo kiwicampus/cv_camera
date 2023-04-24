@@ -221,6 +221,16 @@ bool Capture::setPropertyFromParam(int property_id, const std::string &param_nam
   return true;
 }
 
+// Get VideoCapture properties
+double Capture::getProperty(int property_id)
+{
+  if (cap_.isOpened())
+  {
+    return cap_.get(property_id);
+  }
+  return 0.0;
+}
+
 std::string Capture::execute_command(const char* command)
 {
   std::array<char, 128> buffer;
