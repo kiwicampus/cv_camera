@@ -150,37 +150,40 @@ bool Capture::grab()
 
 bool Capture::capture()
 {
-  if (cap_.retrieve(bridge_.image))
-  {
-    sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
+  if (!cap_.retrieve(bridge_.image)) return false;
+  
+  sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
 
-    // Pack the OpenCV image into the ROS image.
-    auto timestamp = node_->now();
-    msg->header.stamp = timestamp;
-    msg->header.frame_id = frame_id_;
-    msg->height = bridge_.image.rows;
-    msg->width = bridge_.image.cols;
-    msg->encoding = mat_type2encoding(bridge_.image.type());
-    msg->is_bigendian = false;
-    msg->step = static_cast<sensor_msgs::msg::Image::_step_type>(bridge_.image.step);
-    msg->data.assign(bridge_.image.datastart, bridge_.image.dataend);
+  // Pack the OpenCV image into the ROS image.
+  auto timestamp = node_->now();
+  msg->header.stamp = timestamp;
+  msg->header.frame_id = frame_id_;
+  msg->height = bridge_.image.rows;
+  msg->width = bridge_.image.cols;
+  msg->encoding = mat_type2encoding(bridge_.image.type());
+  msg->is_bigendian = false;
+  msg->step = static_cast<sensor_msgs::msg::Image::_step_type>(bridge_.image.step);
+  msg->data.assign(bridge_.image.datastart, bridge_.image.dataend);
 
-    m_pub_image_ptr->publish(std::move(msg));
+  m_pub_image_ptr->publish(std::move(msg));
 
-    // Fill the cam info message.
-    info_.header.stamp = timestamp;
-    info_.header.frame_id = frame_id_;
+  // Fill the cam info message.
+  info_.header.stamp = timestamp;
+  info_.header.frame_id = frame_id_;
 
-    m_pub_camera_info_ptr->publish(info_);
+  m_pub_camera_info_ptr->publish(info_);
 
-    return true;
-  }
-  return false;
+  return true;
 }
 
 void Capture::close()
 {
   cap_.release();
+}
+
+bool Capture::is_opened()
+{
+  return cap_.isOpened();
 }
 
 

@@ -132,30 +132,41 @@ bool Driver::setup()
 
 void Driver::read()
 {
+  if (name_ == "/left")
+      RCLCPP_INFO(get_logger(), "[%s] Grabbing", name_.c_str());
   if (!camera_->grab())
   {
+    camera_->close();
     RCLCPP_WARN_ONCE(get_logger(), "[%s] Grab failed", name_.c_str());
-    return;
+    // return;
   }
 }
 
 void Driver::proceed()
 {
-    if (!camera_->capture())
+  if (name_ == "/left")
+      RCLCPP_ERROR(get_logger(), "[%s] PROCEED", name_.c_str());
+  if (!camera_->is_opened())
   {
-    while (!camera_->open(port_) && reconnection_attempts_ < video_stream_recovery_tries_)
+    if (name_ == "/left")
+      RCLCPP_ERROR(get_logger(), "[%s] is not opened", name_.c_str());
+
+    read_tmr_->cancel();
+    camera_->close();
+    while (!camera_->is_opened() && reconnection_attempts_ < video_stream_recovery_tries_)
     {
       RCLCPP_WARN(get_logger(), "[%s] Reconnecting... attempt %d/%d", name_.c_str(), reconnection_attempts_ + 1,
                   video_stream_recovery_tries_);
       cam_status_->data = 2;
       pub_cam_status_->publish(*cam_status_);
-      camera_->close();
       if (camera_->open(port_))
       {
+        read_tmr_->reset();
         RCLCPP_WARN(get_logger(), "[%s] Reconnected", name_.c_str());
         reconnection_attempts_ = 0;
         cam_status_->data = 1;
         pub_cam_status_->publish(*cam_status_);
+        std::this_thread::sleep_for(std::chrono::seconds(video_stream_recovery_time_));
         break;
       }
       reconnection_attempts_++;
@@ -171,6 +182,19 @@ void Driver::proceed()
       publish_tmr_->cancel();
     }
   }
+  else
+  {
+    if (!camera_->capture())
+    {
+      RCLCPP_WARN(get_logger(), "[%s] Couldn't capture frame", name_.c_str());
+    }
+    else{
+      if (name_ == "/left")
+        RCLCPP_ERROR(get_logger(), "[%s] Captured frame", name_.c_str());
+    }
+  }
+
+
 }
 
 rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector<rclcpp::Parameter>& parameters)

@@ -106,6 +106,12 @@ public:
   void close();
 
   /**
+   * @brief Checks if capture device is opened
+   * Uses release OpenCV function.
+  */
+  bool is_opened();
+
+  /**
    * @brief capture an image and store.
    *
    * to publish the captured image, call publish();
