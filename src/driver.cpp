@@ -134,14 +134,23 @@ void Driver::read()
 {
   if (!camera_->grab())
   {
-    while (!camera_->grab() && reconnection_attempts_ < video_stream_recovery_tries_)
+    RCLCPP_WARN_ONCE(get_logger(), "[%s] Grab failed", name_.c_str());
+    return;
+  }
+}
+
+void Driver::proceed()
+{
+    if (!camera_->capture())
+  {
+    while (!camera_->open(port_) && reconnection_attempts_ < video_stream_recovery_tries_)
     {
       RCLCPP_WARN(get_logger(), "[%s] Reconnecting... attempt %d/%d", name_.c_str(), reconnection_attempts_ + 1,
                   video_stream_recovery_tries_);
       cam_status_->data = 2;
       pub_cam_status_->publish(*cam_status_);
       camera_->close();
-      if (camera_->open(port_) || camera_->open(device_id_))
+      if (camera_->open(port_))
       {
         RCLCPP_WARN(get_logger(), "[%s] Reconnected", name_.c_str());
         reconnection_attempts_ = 0;
@@ -154,22 +163,13 @@ void Driver::read()
     }
     if (reconnection_attempts_ >= video_stream_recovery_tries_)
     {
-      RCLCPP_ERROR(get_logger(), "[%s] Reconnection failed", name_.c_str());
+      RCLCPP_ERROR(get_logger(), "[%s] Camera lost", name_.c_str());
       camera_->close();
       cam_status_->data = 3;
       pub_cam_status_->publish(*cam_status_);
       read_tmr_->cancel();
       publish_tmr_->cancel();
     }
-  }
-}
-
-void Driver::proceed()
-{
-  if (!camera_->capture())
-  {
-    RCLCPP_WARN_ONCE(get_logger(), "[%s] Retrieve failed", name_.c_str());
-    return;
   }
 }
 
