@@ -69,7 +69,7 @@ bool Driver::setup()
   {
     if (!camera_->open(device_id_))
     {
-      RCLCPP_WARN(get_logger(), "Couldnt open camera by device id");
+      RCLCPP_WARN(get_logger(), "[%s] Couldn't open camera by device_id [%d]", name_.c_str(), device_id_);
       return false;
     }
   }
@@ -77,7 +77,7 @@ bool Driver::setup()
   {
     if (!camera_->open(port_))
     {
-      RCLCPP_WARN(get_logger(), "Couldnt open camera by port");
+      RCLCPP_WARN(get_logger(), "[%s] Couldn't open camera by port [%s]", name_.c_str(), port_.c_str());
       return false;
     }
   }
@@ -123,8 +123,8 @@ bool Driver::setup()
   pub_cam_status_->publish(*cam_status_);
 
   // Log camera starting configuration
-  RCLCPP_INFO(get_logger(), "(GOT VIDEO) %s: DEVICE:%s - SIZE:%dX%d - RATE:%d/%d - PROP_MODE:%f - EXPOSURE:%d",
-              name_.c_str(), port_.c_str(), int(camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH)),
+  RCLCPP_INFO(get_logger(), "(GOT VIDEO) %s: DEVICE: %d - SIZE: %dX%d - RATE: %d/%d - PROP_MODE: %f - EXPOSURE: %d",
+              name_.c_str(), device_id_, int(camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH)),
               int(camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT)), int(read_rate_), int(camera_->getProperty(cv::CAP_PROP_FPS)),
               float(camera_->getProperty(cv::CAP_PROP_FOURCC)), int(camera_->getProperty(cv::CAP_PROP_AUTO_EXPOSURE)));
   return true;
@@ -132,42 +132,45 @@ bool Driver::setup()
 
 void Driver::read()
 {
-  camera_->grab();
+  if (!camera_->grab())
+  {
+    while (!camera_->grab() && reconnection_attempts_ < video_stream_recovery_tries_)
+    {
+      RCLCPP_WARN(get_logger(), "[%s] Reconnecting... attempt %d/%d", name_.c_str(), reconnection_attempts_ + 1,
+                  video_stream_recovery_tries_);
+      cam_status_->data = 2;
+      pub_cam_status_->publish(*cam_status_);
+      camera_->close();
+      if (camera_->open(port_) || camera_->open(device_id_))
+      {
+        RCLCPP_WARN(get_logger(), "[%s] Reconnected", name_.c_str());
+        reconnection_attempts_ = 0;
+        cam_status_->data = 1;
+        pub_cam_status_->publish(*cam_status_);
+        break;
+      }
+      reconnection_attempts_++;
+      std::this_thread::sleep_for(std::chrono::seconds(video_stream_recovery_time_));
+    }
+    if (reconnection_attempts_ >= video_stream_recovery_tries_)
+    {
+      RCLCPP_ERROR(get_logger(), "[%s] Reconnection failed", name_.c_str());
+      camera_->close();
+      cam_status_->data = 3;
+      pub_cam_status_->publish(*cam_status_);
+      read_tmr_->cancel();
+      publish_tmr_->cancel();
+    }
+  }
 }
 
 void Driver::proceed()
 {
   if (!camera_->capture())
   {
-    std::chrono::milliseconds video_recovery_time(video_stream_recovery_time_ * 1000);
-
-    while ((!camera_->open(port_)) && reconnection_attempts_ < video_stream_recovery_tries_)
-    {
-      reconnection_attempts_ += 1;
-      RCLCPP_ERROR(get_logger(), "not possible to open %s. (device %s), retrying... %d/%d ", name_.c_str(),
-                    port_.c_str(), reconnection_attempts_, video_stream_recovery_tries_);
-      camera_->open(port_);
-      std::this_thread::sleep_for(video_recovery_time);
-      cam_status_->data = 2;
-      pub_cam_status_->publish(*cam_status_);
-    }
-    if (reconnection_attempts_ >= video_stream_recovery_tries_ && !camera_->capture())
-    {
-      RCLCPP_ERROR(get_logger(), "%s camera Lost", name_.c_str());
-      reconnection_attempts_ = 0;
-      camera_->close();
-      cam_status_->data = 3;
-      pub_cam_status_->publish(*cam_status_);
-      publish_tmr_->cancel();
-    }
-    else
-    {
-      RCLCPP_WARN(get_logger(), "%s camera recovered", name_.c_str());
-      cam_status_->data = 1;
-      pub_cam_status_->publish(*cam_status_);
-    }
-    reconnection_attempts_ = 0;
-  };
+    RCLCPP_WARN_ONCE(get_logger(), "[%s] Retrieve failed", name_.c_str());
+    return;
+  }
 }
 
 rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector<rclcpp::Parameter>& parameters)
@@ -178,7 +181,6 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
     for (auto parameter : parameters) {
     const auto & type = parameter.get_type();
     const auto & name = parameter.get_name();
-
 
     if (type == rclcpp::ParameterType::PARAMETER_DOUBLE) 
     {

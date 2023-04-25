@@ -93,17 +93,8 @@ bool Capture::open(int32_t device_id)
   cap_.open(device_id, cv::CAP_V4L2);
   if (!cap_.isOpened())
   {
-    RCLCPP_ERROR(node_->get_logger(), "Unable to open device /dev/video%d.", device_id);
     return false;
   }
-  else
-  {
-    RCLCPP_WARN_ONCE(node_->get_logger(), "Opening topic %s: with /dev/video%d", img_topic_name_.c_str(), device_id);
-  }
-  // pub_ = it_.advertiseCamera(topic_name_, buffer_size_);
-  // rmw_qos_profile_t custom_qos = rmw_qos_profile_sensor_data;
-  // custom_qos.depth = buffer_size_;
-  // pub_ = image_transport::create_camera_publisher(node_.get(), topic_name_, custom_qos);
   
   loadCameraInfo();
   return true;
@@ -119,23 +110,16 @@ bool Capture::open(const std::string &port)
   }
   else
   {
-    // RCLCPP_WARN_ONCE(node_->get_logger(), "%s: Device couldnt be determined in port %s", topic_name_.c_str(),
-    //                  port.c_str());
-      return false;
+    RCLCPP_WARN(node_->get_logger(), "[%s] Unable to determine device for port %s.", node_->get_name(), port.c_str());
+    return false;
   }
   
   cap_.open(device, cv::CAP_V4L2);
   
   if (!cap_.isOpened())
   {
-    RCLCPP_ERROR(node_->get_logger(), "Unable to open port %s.", port.c_str());
     return false;
-    // throw DeviceError("device_path " + device_path + " cannot be opened");
   }
-  // pub_ = it_.advertiseCamera(topic_name_, buffer_size_);
-  // rmw_qos_profile_t custom_qos = rmw_qos_profile_sensor_data;
-  // custom_qos.depth = buffer_size_;
-  // pub_ = image_transport::create_camera_publisher(node_.get(), topic_name_, custom_qos);
   
   loadCameraInfo();
   return true;
@@ -154,10 +138,6 @@ bool Capture::openFile(const std::string &file_path)
     RCLCPP_ERROR(node_->get_logger(), "Unable to open file %s.", file_path.c_str());
     return false;
   }
-  // pub_ = it_.advertiseCamera(topic_name_, buffer_size_);
-  // rmw_qos_profile_t custom_qos = rmw_qos_profile_sensor_data;
-  // custom_qos.depth = buffer_size_;
-  // pub_ = image_transport::create_camera_publisher(node_.get(), topic_name_, custom_qos);
   
   loadCameraInfo();
   return true;
@@ -200,10 +180,7 @@ bool Capture::capture()
 
 void Capture::close()
 {
-  if (cap_.isOpened())
-  {
-    cap_.release();
-  }
+  cap_.release();
 }
 
 
