@@ -20,7 +20,6 @@ Driver::Driver(const rclcpp::NodeOptions& options) : Node("cv_camera", options)
 
 bool Driver::setup()
 {
-  std::string frame_id("camera_id");
   std::string file_path("");
 
   name_ = this->get_fully_qualified_name();
@@ -47,7 +46,7 @@ bool Driver::setup()
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
   param_manager_.addParameter<std::string>(file_path, "file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
-  param_manager_.addParameter<std::string>(frame_id, "frame_id", "camera_id");
+  param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
 
@@ -58,7 +57,7 @@ bool Driver::setup()
   camera_.reset(new Capture(shared_from_this(),
                             "/video_mapping" + name_ + "/image_raw",
                             "/video_mapping" + name_ + "/camera_info",
-                            frame_id,
+                            frame_id_,
                             PUBLISHER_BUFFER_SIZE));
 
   if (file_path != "")
@@ -132,6 +131,8 @@ bool Driver::setup()
 
 void Driver::read()
 {
+  if (!camera_->is_opened()) return;
+
   if (!camera_->grab())
   {
     if (name_ == "/left") RCLCPP_WARN(get_logger(), "[%s] Grab failed", name_.c_str());
@@ -141,13 +142,11 @@ void Driver::read()
 
 void Driver::proceed()
 {
-  // if (name_ == "/left") RCLCPP_ERROR(get_logger(), "[%s] PROCEED", name_.c_str());
   if (!camera_->is_opened())
   {
     if (name_ == "/left") RCLCPP_ERROR(get_logger(), "[%s] is not opened", name_.c_str());
 
     read_tmr_->cancel();
-    camera_->close();
 
     while (reconnection_attempts_ < video_stream_recovery_tries_)
     {
@@ -182,10 +181,6 @@ void Driver::proceed()
     if (!camera_->capture())
     {
       RCLCPP_WARN(get_logger(), "[%s] Couldn't capture frame", name_.c_str());
-    }
-    else
-    {
-      // if (name_ == "/left") RCLCPP_ERROR(get_logger(), "[%s] Captured frame", name_.c_str());
     }
   }
 
