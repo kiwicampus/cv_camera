@@ -135,7 +135,6 @@ void Driver::read()
 
   if (!camera_->grab())
   {
-    if (name_ == "/left") RCLCPP_WARN(get_logger(), "[%s] Grab failed", name_.c_str());
     camera_->close();
   }
 }
@@ -144,8 +143,6 @@ void Driver::proceed()
 {
   if (!camera_->is_opened())
   {
-    if (name_ == "/left") RCLCPP_ERROR(get_logger(), "[%s] is not opened", name_.c_str());
-
     read_tmr_->cancel();
 
     while (reconnection_attempts_ < video_stream_recovery_tries_)
@@ -183,8 +180,6 @@ void Driver::proceed()
       RCLCPP_WARN(get_logger(), "[%s] Couldn't capture frame", name_.c_str());
     }
   }
-
-
 }
 
 rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector<rclcpp::Parameter>& parameters)
