@@ -33,7 +33,8 @@ class Camera:
         self.intrinsic_file = intrinsic_file
 
 
-def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file: str) -> Dict[str, Union[str, int]]:
+def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file: str, 
+                 balena_app_name: str) -> Dict[str, Union[str, int]]:
     """!
     Finds the camera numbers and ports that correspond to real cameras
     Note: (devices may be repeated)
@@ -48,12 +49,13 @@ def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file:
     # Reads de cameras configurations file.
     vision_ports = read_cams_ports(CONF_PATH=ports_file)
     # Get cameras intrinsic parameters file
+    fleet_id = "NAV2" if "Nav2" in balena_app_name else bot_id
     calibration_params_dict = read_fleet_config_file(
             read_cams_configuration(
                 params_file,
                 "fleet_cams_calibration_params.yaml",
             ),
-            bot_id
+            fleet_id
         )
 
     # print("cams:", cams, flush=True)
@@ -99,6 +101,9 @@ def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file:
         for cam_label in vision_ports[running_device].keys()
         if cam_label != "S" or vision_ports[running_device][cam_label] != "None"
     ]
+
+    calibration_params_dict = {cam_label: os.getenv(f"{cam_label}_CALIBRATION_PARAMS_FILE") or params
+                           for cam_label, params in calibration_params_dict.items()}
 
     # Initializes camera objects
     camera_handlers = [
