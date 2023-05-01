@@ -249,6 +249,11 @@ private:
   image_transport::CameraPublisher pub_;
 
   /**
+   * @brief video path to be streamed
+   */
+  std::string video_path_ = "";
+
+  /**
    * @brief capture device.
    */
   cv::VideoCapture cap_;

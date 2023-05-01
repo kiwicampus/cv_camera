@@ -20,8 +20,6 @@ Driver::Driver(const rclcpp::NodeOptions& options) : Node("cv_camera", options)
 
 bool Driver::setup()
 {
-  std::string file_path("");
-
   name_ = this->get_fully_qualified_name();
 
   // OpenCV Parameters
@@ -40,11 +38,9 @@ bool Driver::setup()
   param_manager_.addParameter(device_id_, "device_id", -1);
   param_manager_.addParameter(publish_rate_, "publish_rate", 15.0f);
   param_manager_.addParameter(read_rate_, "read_rate", 15.0f);
-  param_manager_.addParameter<std::string>(cam_info_topic_, "cam_info_topic", "");
   param_manager_.addParameter(cam_info_period_, "cam_info_period", 5);
   param_manager_.addParameter(flip_, "flip", false);
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
-  param_manager_.addParameter<std::string>(file_path, "file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
@@ -60,9 +56,9 @@ bool Driver::setup()
                             frame_id_,
                             PUBLISHER_BUFFER_SIZE));
 
-  if (file_path != "")
+  if (video_path_ != "")
   {
-    camera_->openFile(file_path);
+    camera_->openFile(video_path_);
   }
   else if (device_id_ >= 0)
   {
@@ -80,7 +76,7 @@ bool Driver::setup()
       return false;
     }
   }
-  
+
   camera_->setPropertyFromParam(cv::CAP_PROP_POS_MSEC, "cv_cap_prop_pos_msec");
   camera_->setPropertyFromParam(cv::CAP_PROP_POS_AVI_RATIO, "cv_cap_prop_pos_avi_ratio");
   camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "width");
@@ -141,7 +137,9 @@ void Driver::read()
 
 void Driver::proceed()
 {
-  if (!camera_->is_opened())
+  if (video_path_ != "") camera_->capture();
+
+  else if (!camera_->is_opened())
   {
     read_tmr_->cancel();
 

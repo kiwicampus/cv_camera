@@ -139,12 +139,19 @@ bool Capture::openFile(const std::string &file_path)
     return false;
   }
   
+  video_path_ = file_path;
   loadCameraInfo();
   return true;
 }
 
 bool Capture::grab()
 {
+  // Restart the video when it ends when video playback mode
+  if (video_path_ != "" && cap_.get(cv::CAP_PROP_POS_FRAMES) >= cap_.get(cv::CAP_PROP_FRAME_COUNT))
+  {
+    cap_.set(cv::CAP_PROP_POS_FRAMES, 0);
+  }
+
   return cap_.grab();
 }
 
