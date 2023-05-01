@@ -43,6 +43,7 @@ public:
           const std::string &img_topic_name,
           const std::string &cam_info_topic_name,
           const std::string &frame_id,
+          const bool &flip,
           uint32_t buffer_size);
 
   /**
@@ -238,6 +239,10 @@ private:
    * @brief header.frame_id for publishing images.
    */
   std::string frame_id_;
+  /**
+   * @brief flip image
+   */
+  bool flip_;
   /**
    * @brief size of publisher buffer
    */

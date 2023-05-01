@@ -10,12 +10,13 @@ namespace cv_camera
 namespace enc = sensor_msgs::image_encodings;
 
 Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name,
-                 const std::string &frame_id, uint32_t buffer_size)
+                 const std::string &frame_id, const bool &flip, uint32_t buffer_size)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
       cam_info_topic_name_(cam_info_topic_name),
       frame_id_(frame_id),
+      flip_(flip),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
       capture_delay_(rclcpp::Duration(0, 0.0))
@@ -158,7 +159,8 @@ bool Capture::grab()
 bool Capture::capture()
 {
   if (!cap_.retrieve(bridge_.image)) return false;
-  
+  if (flip_) cv::flip(bridge_.image, bridge_.image, -1);
+
   sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
 
   // Pack the OpenCV image into the ROS image.
@@ -201,8 +203,11 @@ bool Capture::setPropertyFromParam(int property_id, const std::string &param_nam
     double value = 0.0;
     if (node_->get_parameter(param_name, value))
     {
-      // RCLCPP_INFO(node_->get_logger(), "setting property %s = %lf", param_name.c_str(), value);
-      return cap_.set(property_id, value);
+      if (!cap_.set(property_id, value) && value != getProperty(property_id))
+      {
+        RCLCPP_ERROR(node_->get_logger(), "Setting with code %d and value %f failed", property_id, value);
+        return false;
+      }
     }
   }
   return true;

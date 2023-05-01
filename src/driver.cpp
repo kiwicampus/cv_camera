@@ -28,7 +28,7 @@ bool Driver::setup()
   this->declare_parameter("fourcc", rclcpp::PARAMETER_STRING_ARRAY);
   this->declare_parameter("cv_cap_prop_fourcc", 0.0);
   this->get_parameter("fourcc", fourcc_);
-  // Decode fourcc as CV2 only accepts double for its parameters
+  // Decode fourcc as CV2 only accepts double values for its parameters
   this->set_parameter(rclcpp::Parameter("cv_cap_prop_fourcc", (double)cv::VideoWriter::fourcc(
                       *fourcc_[0].c_str(), *fourcc_[1].c_str(), *fourcc_[2].c_str(), *fourcc_[3].c_str())));
 
@@ -54,6 +54,7 @@ bool Driver::setup()
                             "/video_mapping" + name_ + "/image_raw",
                             "/video_mapping" + name_ + "/camera_info",
                             frame_id_,
+                            flip_,
                             PUBLISHER_BUFFER_SIZE));
 
   if (video_path_ != "")
@@ -197,14 +198,14 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         // Create timer with new read rate
         RCLCPP_WARN(get_logger(), "Setting new read rate to %f", read_rate_);
         read_tmr_->cancel();
-        read_tmr_ =
-          this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / read_rate_)), std::bind(&Driver::read, this));
+        read_tmr_ = this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / read_rate_)), 
+                                  std::bind(&Driver::read, this));
       } 
       else if (name  == "publish_rate") 
       {
         publish_rate_ = parameter.as_double();
         // Create timer with new publish rate
-        RCLCPP_WARN(get_logger(), "Seting new publish rate to %f", publish_rate_);
+        RCLCPP_WARN(get_logger(), "Setting new publish rate to %f", publish_rate_);
         publish_tmr_->cancel();
         publish_tmr_ = this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / publish_rate_)),
                                                std::bind(&Driver::proceed, this));
