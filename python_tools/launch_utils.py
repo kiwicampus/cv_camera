@@ -21,20 +21,22 @@ class Camera:
     def __init__(
         self,
         label: str,
-        device_id: int = None,
-        port: str = None,
-        cam_format: str = None,
-        intrinsic_file: str = None,
+        device_id: int = -1,
+        port: str = "",
+        cam_format: str = "",
+        intrinsic_file: str = "",
+        video_path: str = "",
     ):
         self.label = label
         self.device_id = device_id
         self.port = port
         self.cam_format = cam_format
         self.intrinsic_file = intrinsic_file
+        self.video_path = video_path
 
 
 def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file: str, 
-                 balena_app_name: str) -> Dict[str, Union[str, int]]:
+                 balena_app_name: str, params_file_dict: dict) -> Dict[str, Union[str, int]]:
     """!
     Finds the camera numbers and ports that correspond to real cameras
     Note: (devices may be repeated)
@@ -116,6 +118,17 @@ def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file:
         )
         if device_number is not None
     ]
+
+    # if there is video file create a cam object for it
+    for cam_label, param in params_file_dict.items():
+        if "video_path" in param["ros__parameters"].keys() and param["ros__parameters"]["video_path"]:
+            camera_handlers.append(
+                Camera(
+                    label = cam_label,
+                    intrinsic_file = os.path.join(params_file, calibration_params_dict[remap_label[cam_label]]),
+                    video_path = param["ros__parameters"]["video_path"],
+                )
+            )
 
     if not camera_handlers:
         printlog("No USB cameras found", msg_type="ERROR")
