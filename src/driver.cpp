@@ -150,7 +150,7 @@ void Driver::proceed()
                   video_stream_recovery_tries_);
       cam_status_->data = 2;
       pub_cam_status_->publish(*cam_status_);
-      if (camera_->open(port_))
+      if (camera_->open(port_) && camera_->grab() && camera_->capture())
       {
         read_tmr_->reset();
         RCLCPP_WARN(get_logger(), "[%s] Reconnected", name_.c_str());

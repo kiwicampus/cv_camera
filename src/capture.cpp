@@ -111,7 +111,7 @@ bool Capture::open(const std::string &port)
   }
   else
   {
-    RCLCPP_WARN(node_->get_logger(), "[%s] Unable to determine device for port %s.", node_->get_name(), port.c_str());
+    RCLCPP_WARN_ONCE(node_->get_logger(), "[%s] Unable to determine device for port %s.", node_->get_name(), port.c_str());
     return false;
   }
   
