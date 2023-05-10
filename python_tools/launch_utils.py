@@ -217,9 +217,11 @@ def get_camera_format() -> List[Dict[str, Union[str, int]]]:
     """
     try:
         df = subprocess.check_output("v4l2-ctl --list-devices --verbose", shell=True)
-    except Exception as e:
+    except subprocess.CalledProcessError:
+        return []
+    except Exception as ex:
         printlog(
-            f"----- ERROR RETRIEVING VIDEO FORMAT ----- (Error: {e})", msg_type="ERROR"
+            f"----- ERROR RETRIEVING VIDEO FORMAT ----- (Error: {ex})", msg_type="ERROR"
         )
         return []
 
