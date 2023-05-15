@@ -303,7 +303,9 @@ def read_fleet_config_file(fleet_params_file: dict, bot_id: str) -> dict:
 
     # Several bot versions are in the yaml file
     # but only the params of the current one are the ones we need.
+    # The last one is the default one
+    selected_dict = fleet_params_file[list(fleet_params_file.keys())[-1]]
     for current_fleet_model in fleet_params_file.keys():
         if current_fleet_model in bot_id:
-            return fleet_params_file[current_fleet_model]
-    return {}
+            selected_dict =  fleet_params_file[current_fleet_model]
+    return selected_dict

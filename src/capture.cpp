@@ -40,11 +40,11 @@ void Capture::loadCameraInfo()
     }
     else
     {
-      RCLCPP_ERROR(node_->get_logger(), "Invalid camera info URL %s", url.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "[%s] Invalid camera info URL %s", node_->get_name(), url.c_str());
     }
   }
 
-  rescale_camera_info_ = true;
+  rescale_camera_info_ = false;
   node_->get_parameter_or("rescale_camera_info", rescale_camera_info_, rescale_camera_info_);
 
   info_ = info_manager_.getCameraInfo();
@@ -65,7 +65,7 @@ void Capture::loadCameraInfo()
     }
     if (!cap_.set(code, value))
     {
-      RCLCPP_ERROR(node_->get_logger(), "Setting with code %d and value %f failed", code, value);
+      RCLCPP_ERROR(node_->get_logger(), "[%s] Setting with code %d and value %f failed", node_->get_name(),code, value);
     }
   }
 }
