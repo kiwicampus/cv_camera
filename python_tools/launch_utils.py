@@ -104,7 +104,7 @@ def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file:
         if cam_label != "S" or vision_ports[running_device][cam_label] != "None"
     ]
 
-    calibration_params_dict = {cam_label: os.getenv(f"{cam_label}_CALIBRATION_PARAMS_FILE") or params
+    calibration_params_dict = {cam_label: os.getenv(f"{str(cam_label).upper}_CALIBRATION_PARAMS_FILE") or params
                            for cam_label, params in calibration_params_dict.items()}
 
     # Initializes camera objects
