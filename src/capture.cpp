@@ -174,6 +174,13 @@ bool Capture::capture()
   msg->step = static_cast<sensor_msgs::msg::Image::_step_type>(bridge_.image.step);
   msg->data.assign(bridge_.image.datastart, bridge_.image.dataend);
 
+  // Dont publish image if empty
+  if (bridge_.image.empty())
+  {
+    RCLCPP_WARN_ONCE(node_->get_logger(), "[%s] Frame is empty.", node_->get_name());
+    return false;
+  }
+
   m_pub_image_ptr->publish(std::move(msg));
 
   // Fill the cam info message.
