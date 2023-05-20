@@ -144,12 +144,13 @@ void Driver::proceed()
   {
     read_tmr_->cancel();
 
+    cam_status_->data = DISCONNECTED;
+    pub_cam_status_->publish(*cam_status_);
+
     while (reconnection_attempts_ < video_stream_recovery_tries_)
     {
       RCLCPP_WARN(get_logger(), "[%s] Reconnecting... attempt %d/%d", name_.c_str(), reconnection_attempts_ + 1,
                   video_stream_recovery_tries_);
-      cam_status_->data = DISCONNECTED;
-      pub_cam_status_->publish(*cam_status_);
       if (camera_->open(port_))
       {
         if (camera_->grab() && camera_->capture())
