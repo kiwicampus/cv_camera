@@ -128,6 +128,19 @@ class Driver : public rclcpp::Node
      4 -> Lecture Error [No for stereo]
   */
   std::shared_ptr<std_msgs::msg::UInt8> cam_status_;
+
+  /**
+   * Status of the cameras for easier handling
+  */
+  enum Status
+  {
+      UNRECOGNIZED = 0,
+      ONLINE = 1,
+      DISCONNECTED = 2,
+      LOST = 3,
+      LECTURE_ERROR = 4
+  };
+
   /**
    * @brief Environment variables
    */

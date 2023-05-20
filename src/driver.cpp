@@ -115,7 +115,7 @@ bool Driver::setup()
   pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", 1);
 
   cam_status_ = std::make_shared<std_msgs::msg::UInt8>();
-  cam_status_->data = 1;
+  cam_status_->data = ONLINE;
   pub_cam_status_->publish(*cam_status_);
 
   // Log camera starting configuration
@@ -148,16 +148,24 @@ void Driver::proceed()
     {
       RCLCPP_WARN(get_logger(), "[%s] Reconnecting... attempt %d/%d", name_.c_str(), reconnection_attempts_ + 1,
                   video_stream_recovery_tries_);
-      cam_status_->data = 2;
+      cam_status_->data = DISCONNECTED;
       pub_cam_status_->publish(*cam_status_);
-      if (camera_->open(port_) && camera_->grab() && camera_->capture())
+      if (camera_->open(port_))
       {
-        read_tmr_->reset();
-        RCLCPP_WARN(get_logger(), "[%s] Reconnected", name_.c_str());
-        reconnection_attempts_ = 0;
-        cam_status_->data = 1;
-        pub_cam_status_->publish(*cam_status_);
-        break;
+        if (camera_->grab() && camera_->capture())
+        {
+          read_tmr_->reset();
+          RCLCPP_WARN(get_logger(), "[%s] Reconnected", name_.c_str());
+          reconnection_attempts_ = 0;
+          cam_status_->data = ONLINE;
+          pub_cam_status_->publish(*cam_status_);
+          break;
+        }
+        else
+        {
+          cam_status_->data = LECTURE_ERROR;
+          pub_cam_status_->publish(*cam_status_);
+        }
       }
       reconnection_attempts_++;
       std::this_thread::sleep_for(std::chrono::seconds(video_stream_recovery_time_));
@@ -166,7 +174,7 @@ void Driver::proceed()
     {
       RCLCPP_ERROR(get_logger(), "[%s] Camera lost", name_.c_str());
       camera_->close();
-      cam_status_->data = 3;
+      cam_status_->data = LOST;
       pub_cam_status_->publish(*cam_status_);
       read_tmr_->cancel();
       publish_tmr_->cancel();
