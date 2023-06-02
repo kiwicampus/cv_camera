@@ -40,6 +40,7 @@ bool Driver::setup()
   param_manager_.addParameter(read_rate_, "read_rate", 15.0f);
   param_manager_.addParameter(cam_info_period_, "cam_info_period", 5);
   param_manager_.addParameter(flip_, "flip", false);
+  param_manager_.addParameter(rectify_, "rectify", false);
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
@@ -56,6 +57,7 @@ bool Driver::setup()
                             "/video_mapping" + name_ + "/image_rect",
                             frame_id_,
                             flip_,
+                            rectify_,
                             PUBLISHER_BUFFER_SIZE));
 
   if (video_path_ != "")

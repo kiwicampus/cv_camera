@@ -95,6 +95,10 @@ class Driver : public rclcpp::Node
   */
   bool flip_;
   /**
+   * @brief Rectify image.
+  */
+  bool rectify_;
+  /**
    * @brief Video path
   */
   std::string video_path_;

@@ -16,7 +16,6 @@
 #include "std_msgs/msg/u_int8.hpp"
 
 #include "utils/parameters.hpp"
-#include "utils/console.hpp"
 
 /**
  * @brief namespace of this package
@@ -45,7 +44,8 @@ public:
           const std::string &cam_info_topic_name,
           const std::string &rect_image_topic_name,
           const std::string &frame_id,
-          const bool &flip,
+          const bool flip,
+          const bool rectify,
           uint32_t buffer_size);
 
   /**
@@ -263,7 +263,8 @@ private:
   /**
    * @brief rectify image
    */
-  bool rectify_ = getEnv("VISION_CV_CAMERA_RECTIFY", false);
+  bool rectify_ = false;
+
   /**
    * @brief Rectification maps
    */
