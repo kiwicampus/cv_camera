@@ -9,12 +9,13 @@ namespace cv_camera
 
 namespace enc = sensor_msgs::image_encodings;
 
-Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name,
-                 const std::string &frame_id, const bool &flip, uint32_t buffer_size)
+Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name, 
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool &flip, uint32_t buffer_size)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
       cam_info_topic_name_(cam_info_topic_name),
+      rect_img_topic_name_(rect_img_topic_name),
       frame_id_(frame_id),
       flip_(flip),
       buffer_size_(buffer_size),
@@ -23,6 +24,7 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
 {
     int dur = 0;
     m_pub_image_ptr = node->create_publisher<sensor_msgs::msg::Image>(img_topic_name_, 1);
+    m_pub_rect_image_ptr = node->create_publisher<sensor_msgs::msg::Image>(rect_img_topic_name_, 1);
     m_pub_camera_info_ptr = node->create_publisher<sensor_msgs::msg::CameraInfo>(cam_info_topic_name_, 1);
     node_->get_parameter_or("capture_delay", dur, dur);
     this->capture_delay_ = rclcpp::Duration(dur, 0.0);
@@ -44,10 +46,51 @@ void Capture::loadCameraInfo()
     }
   }
 
+  info_ = info_manager_.getCameraInfo();
+
+  // If zero distortion, just pass the message along
+  bool zero_distortion = true;
+
+  for (size_t i = 0; i < info_.d.size(); ++i)
+  {
+      if (info_.d[i] != 0.0)
+      {
+          zero_distortion = false;
+          break;
+      }
+  }
+
+  // This will be true if D is empty/zero sized
+  if (zero_distortion)
+  {
+      RCLCPP_ERROR(node_->get_logger(), "[%s] No distortion coefficients found, rectification cannot be done", node_->get_name());
+      return;
+  }
+
+  cv::Mat K = cv::Mat(3, 3, CV_64F, info_.k.data());
+  cv::Mat R = cv::Mat(3, 3, CV_64F, info_.r.data());
+  cv::Mat P = cv::Mat(3, 4, CV_64F, info_.p.data());
+
+  // select depending on distortion model
+  if (info_.distortion_model == "plumb_bob")
+  {
+      cv::Mat D = cv::Mat(1, 5, CV_64F, info_.d.data());
+      cv::initUndistortRectifyMap(K, D, R, P, cv::Size(info_.width, info_.height), CV_16SC2, map1_, map2_);
+  }
+  else if (info_.distortion_model == "equidistant")
+  {
+      cv::Mat D = cv::Mat(1, 4, CV_64F, info_.d.data());
+      cv::fisheye::initUndistortRectifyMap(K, D, R, P, cv::Size(info_.width, info_.height), CV_16SC2, map1_, map2_);
+  }
+  else
+  {
+      RCLCPP_ERROR(node_->get_logger(), "[%s] Unsupported distortion model: %s", node_->get_name(), info_.distortion_model.c_str());
+      return;
+  }
+
   rescale_camera_info_ = false;
   node_->get_parameter_or("rescale_camera_info", rescale_camera_info_, rescale_camera_info_);
 
-  info_ = info_manager_.getCameraInfo();
 
   for (int i = 0;; ++i)
   {
@@ -164,8 +207,8 @@ bool Capture::capture()
   sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
 
   // Pack the OpenCV image into the ROS image.
-  auto timestamp = node_->now();
-  msg->header.stamp = timestamp;
+  timestamp_ = node_->now();
+  msg->header.stamp = timestamp_;
   msg->header.frame_id = frame_id_;
   msg->height = bridge_.image.rows;
   msg->width = bridge_.image.cols;
@@ -184,12 +227,49 @@ bool Capture::capture()
   m_pub_image_ptr->publish(std::move(msg));
 
   // Fill the cam info message.
-  info_.header.stamp = timestamp;
+  info_.header.stamp = timestamp_;
   info_.header.frame_id = frame_id_;
 
   m_pub_camera_info_ptr->publish(info_);
 
+  if (rectify_) rectify();
+
   return true;
+}
+
+
+void Capture::rectify()
+{
+    // Dont publish image if empty
+  if (bridge_.image.empty())
+  {
+    RCLCPP_WARN_ONCE(node_->get_logger(), "[%s] Frame is empty.", node_->get_name());
+    return;
+  }
+
+  cv::Mat rect_image = bridge_.image;
+
+  // return if map empty
+  if (map1_.empty() || map2_.empty())
+  {
+      RCLCPP_WARN(node_->get_logger(), "[%s] Map1 or Map2 is empty", node_->get_name());
+      return;
+  }
+  cv::remap(rect_image, rect_image, map1_, map2_, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
+
+  // Update message
+  sensor_msgs::msg::Image::UniquePtr msg_image(new sensor_msgs::msg::Image());
+  msg_image->header.stamp = timestamp_;
+  msg_image->header.frame_id = frame_id_;
+  msg_image->height = rect_image.rows;
+  msg_image->width = rect_image.cols;
+  msg_image->encoding = mat_type2encoding(rect_image.type());
+  msg_image->is_bigendian = false;
+  msg_image->step = static_cast<sensor_msgs::msg::Image::_step_type>(rect_image.step);
+  msg_image->data.assign(rect_image.datastart, rect_image.dataend);
+
+  // Publish rectified image
+  m_pub_rect_image_ptr->publish(std::move(msg_image));
 }
 
 void Capture::close()
@@ -212,7 +292,7 @@ bool Capture::setPropertyFromParam(int property_id, const std::string &param_nam
     {
       if (!cap_.set(property_id, value) && value != getProperty(property_id))
       {
-        RCLCPP_ERROR(node_->get_logger(), "Setting with code %d and value %f failed", property_id, value);
+        RCLCPP_ERROR(node_->get_logger(), "[%s] Setting with code %d and value %f failed", node_->get_name(), property_id, value);
         return false;
       }
     }

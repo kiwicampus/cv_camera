@@ -11,11 +11,12 @@
 #include <image_transport/image_transport.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/image_encodings.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/opencv.hpp"
 #include <camera_info_manager/camera_info_manager.hpp>
 #include "std_msgs/msg/u_int8.hpp"
 
 #include "utils/parameters.hpp"
+#include "utils/console.hpp"
 
 /**
  * @brief namespace of this package
@@ -42,6 +43,7 @@ public:
   Capture(rclcpp::Node::SharedPtr node,
           const std::string &img_topic_name,
           const std::string &cam_info_topic_name,
+          const std::string &rect_image_topic_name,
           const std::string &frame_id,
           const bool &flip,
           uint32_t buffer_size);
@@ -85,6 +87,13 @@ public:
    * This loads the camera info from the file specified in the camera_info_url parameter.
    */
   void loadCameraInfo();
+
+  /**
+   * @brief Rectify image using camera info.
+   *
+   * This uses the camera info loaded by loadCameraInfo() and creates a rectified image.
+   */
+  void rectify();
 
   /**
    * @brief Open default camera device.
@@ -236,6 +245,10 @@ private:
   std::string cam_info_topic_name_;
 
   /**
+   * @brief name of rectified topic without namespace (usually "image_rect").
+   */
+  std::string rect_img_topic_name_;
+  /**
    * @brief header.frame_id for publishing images.
    */
   std::string frame_id_;
@@ -243,6 +256,18 @@ private:
    * @brief flip image
    */
   bool flip_;
+  /**
+   * @brief timestamp of capture image
+   */
+  rclcpp::Time timestamp_;
+  /**
+   * @brief rectify image
+   */
+  bool rectify_ = getEnv("VISION_CV_CAMERA_RECTIFY", false);
+  /**
+   * @brief Rectification maps
+   */
+  cv::Mat map1_, map2_;
   /**
    * @brief size of publisher buffer
    */
@@ -294,6 +319,10 @@ private:
    * @brief Final publisher for image messages
    */
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_pub_image_ptr;
+  /**
+   * @brief Final publisher for rectified image messages
+   */
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_pub_rect_image_ptr;
   /**
    * @brief Final publisher for camera info messages
    */

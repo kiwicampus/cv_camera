@@ -53,6 +53,7 @@ bool Driver::setup()
   camera_.reset(new Capture(shared_from_this(),
                             "/video_mapping" + name_ + "/image_raw",
                             "/video_mapping" + name_ + "/camera_info",
+                            "/video_mapping" + name_ + "/image_rect",
                             frame_id_,
                             flip_,
                             PUBLISHER_BUFFER_SIZE));
