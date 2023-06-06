@@ -10,7 +10,7 @@ namespace cv_camera
 namespace enc = sensor_msgs::image_encodings;
 
 Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name, 
-                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool flip, const bool rectify, uint32_t buffer_size)
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool flip, uint32_t buffer_size)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
@@ -18,7 +18,6 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
       rect_img_topic_name_(rect_img_topic_name),
       frame_id_(frame_id),
       flip_(flip),
-      rectify_(rectify),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
       capture_delay_(rclcpp::Duration(0, 0.0))
@@ -232,8 +231,6 @@ bool Capture::capture()
   info_.header.frame_id = frame_id_;
 
   m_pub_camera_info_ptr->publish(info_);
-
-  if (rectify_) rectify();
 
   return true;
 }

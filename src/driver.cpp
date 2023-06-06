@@ -41,6 +41,7 @@ bool Driver::setup()
   param_manager_.addParameter(cam_info_period_, "cam_info_period", 5);
   param_manager_.addParameter(flip_, "flip", false);
   param_manager_.addParameter(rectify_, "rectify", false);
+  param_manager_.addParameter(always_rectify_, "always_rectify", false);
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
@@ -57,7 +58,6 @@ bool Driver::setup()
                             "/video_mapping" + name_ + "/image_rect",
                             frame_id_,
                             flip_,
-                            rectify_,
                             PUBLISHER_BUFFER_SIZE));
 
   if (video_path_ != "")
@@ -108,6 +108,11 @@ bool Driver::setup()
 #ifdef CV_CAP_PROP_BUFFERSIZE
     camera_->setPropertyFromParam(cv::CAP_PROP_BUFFERSIZE, "cv_cap_prop_buffersize");
 #endif  // CV_CAP_PROP_BUFFERSIZE
+
+  // Subscribers
+  undistort_req_sub_ = 
+    this->create_subscription<std_msgs::msg::Bool>("/video_mapping/un_distort", 1, 
+                    [&](const std_msgs::msg::Bool::SharedPtr msg) -> void { undistort_img_req_bool_ = msg->data; });
   // Timers
   read_tmr_ =
     this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / read_rate_)), std::bind(&Driver::read, this));
@@ -189,6 +194,11 @@ void Driver::proceed()
     if (!camera_->capture())
     {
       RCLCPP_WARN(get_logger(), "[%s] Couldn't capture frame", name_.c_str());
+    }
+    else
+    {
+      if (always_rectify_ || (rectify_ && undistort_img_req_bool_))
+        camera_->rectify();
     }
   }
 }

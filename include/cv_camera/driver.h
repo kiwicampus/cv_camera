@@ -40,6 +40,10 @@ class Driver : public rclcpp::Node
   */
   void proceed();
  private:
+   /**
+   * @brief ROS subscription for undistort request.
+   */
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr undistort_req_sub_;
   /**
    * @brief ROS private timer for publishing images.
    */
@@ -95,9 +99,17 @@ class Driver : public rclcpp::Node
   */
   bool flip_;
   /**
+   * @brief Undistort image request from console
+  */
+  bool undistort_img_req_bool_;
+  /**
    * @brief Rectify image.
   */
   bool rectify_;
+  /**
+   * @brief Always publish rectified image.
+  */
+  bool always_rectify_;
   /**
    * @brief Video path
   */

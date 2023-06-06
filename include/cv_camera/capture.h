@@ -14,6 +14,7 @@
 #include "opencv2/opencv.hpp"
 #include <camera_info_manager/camera_info_manager.hpp>
 #include "std_msgs/msg/u_int8.hpp"
+#include "std_msgs/msg/bool.hpp"
 
 #include "utils/parameters.hpp"
 
@@ -45,7 +46,6 @@ public:
           const std::string &rect_image_topic_name,
           const std::string &frame_id,
           const bool flip,
-          const bool rectify,
           uint32_t buffer_size);
 
   /**
@@ -260,10 +260,6 @@ private:
    * @brief timestamp of capture image
    */
   rclcpp::Time timestamp_;
-  /**
-   * @brief rectify image
-   */
-  bool rectify_ = false;
 
   /**
    * @brief Rectification maps
