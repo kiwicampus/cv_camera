@@ -249,6 +249,10 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         publish_tmr_ = this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / publish_rate_)),
                                                std::bind(&Driver::proceed, this));
       }
+      else if (name == "width" || name == "height")
+      {
+        setup();
+      }
       else if (name == "cv_cap_prop_brightness")
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_BRIGHTNESS, "cv_cap_prop_brightness");
