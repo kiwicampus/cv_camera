@@ -48,6 +48,15 @@ bool Driver::setup()
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
 
+  // Video capture parameters
+  param_manager_.addParameter(cv_cap_prop_brightness_, "cv_cap_prop_brightness", 0.0f);
+  param_manager_.addParameter(cv_cap_prop_contrast_, "cv_cap_prop_contrast", 32.0f);
+  param_manager_.addParameter(cv_cap_prop_saturation_, "cv_cap_prop_saturation", 56.0f);
+  param_manager_.addParameter(cv_cap_prop_hue_, "cv_cap_prop_hue", 0.0f);
+  param_manager_.addParameter(cv_cap_prop_gain_, "cv_cap_prop_gain", 0.0f);
+  param_manager_.addParameter(cv_cap_prop_exposure_, "cv_cap_prop_exposure", 156.0f);
+  param_manager_.addParameter(cv_cap_prop_auto_exposure_, "cv_cap_prop_auto_exposure", 3.0f);
+
   // Services
    params_callback_handle_ =
     this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
@@ -231,6 +240,38 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         publish_tmr_->cancel();
         publish_tmr_ = this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / publish_rate_)),
                                                std::bind(&Driver::proceed, this));
+      }
+      else if (name == "cv_cap_prop_brightness")
+      {
+        camera_->setPropertyFromParam(cv::CAP_PROP_BRIGHTNESS, "cv_cap_prop_brightness");
+      }
+      else if (name == "cv_cap_prop_contrast")
+      {
+        camera_->setPropertyFromParam(cv::CAP_PROP_CONTRAST, "cv_cap_prop_contrast");
+      }
+      else if (name == "cv_cap_prop_saturation")
+      {
+        camera_->setPropertyFromParam(cv::CAP_PROP_SATURATION, "cv_cap_prop_saturation");
+      }
+      else if (name == "cv_cap_prop_hue")
+      {
+        camera_->setPropertyFromParam(cv::CAP_PROP_HUE, "cv_cap_prop_hue");
+      }
+      else if (name == "cv_cap_prop_gain")
+      {
+        camera_->setPropertyFromParam(cv::CAP_PROP_GAIN, "cv_cap_prop_gain");
+      }
+      else if (name == "cv_cap_prop_exposure")
+      {
+        camera_->setPropertyFromParam(cv::CAP_PROP_EXPOSURE, "cv_cap_prop_exposure");
+      }
+      else if (name == "cv_cap_prop_exposure")
+      {
+        camera_->setPropertyFromParam(cv::CAP_PROP_EXPOSURE, "cv_cap_prop_exposure");
+      }
+      else if (name == "cv_cap_prop_auto_exposure")
+      {
+        camera_->setPropertyFromParam(cv::CAP_PROP_AUTO_EXPOSURE, "cv_cap_prop_auto_exposure");
       }
     }
   }

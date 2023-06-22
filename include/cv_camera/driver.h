@@ -145,6 +145,37 @@ class Driver : public rclcpp::Node
   */
   std::shared_ptr<std_msgs::msg::UInt8> cam_status_;
 
+  // video capture parameters
+  /**
+   * @brief Camera cv_cap_prop_brightness.
+   */
+  float cv_cap_prop_brightness_;
+  /**
+   * @brief Camera cv_cap_prop_contrast.
+   */
+  float cv_cap_prop_contrast_;
+  /**
+   * @brief Camera cv_cap_prop_saturation.
+   */
+  float cv_cap_prop_saturation_;
+  /**
+   * @brief Camera cv_cap_prop_hue.
+   */
+  float cv_cap_prop_hue_;
+  /**
+   * @brief Camera cv_cap_prop_gain.
+   */
+  float cv_cap_prop_gain_;
+  /**
+   * @brief Camera cv_cap_prop_exposure.
+   */
+  float cv_cap_prop_exposure_;
+  /**
+   * @brief Camera cv_cap_prop_auto_exposure.
+   */
+  float cv_cap_prop_auto_exposure_;
+  
+
   /**
    * Status of the cameras for easier handling
   */
