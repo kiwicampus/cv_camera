@@ -48,6 +48,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
+  param_manager_.addParameter(re_attempt_setup_, "re_attempt_setup", false);
 
   // Video capture parameters
   param_manager_.addParameter(cv_cap_prop_brightness_, "cv_cap_prop_brightness", 0.0f);
@@ -58,13 +59,21 @@ void Driver::parameters_setup()
   param_manager_.addParameter(cv_cap_prop_exposure_, "cv_cap_prop_exposure", 156.0f);
   param_manager_.addParameter(cv_cap_prop_auto_exposure_, "cv_cap_prop_auto_exposure", 3.0f);
 
+  // Subscribers
+  undistort_req_sub_ = 
+    this->create_subscription<std_msgs::msg::Bool>("/video_mapping/un_distort", 1, 
+                    [&](const std_msgs::msg::Bool::SharedPtr msg) -> void { undistort_img_req_bool_ = msg->data; });
+
+  // Publishers
+  pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", 1);
+
+  // Services
+  params_callback_handle_ =
+    this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
 }
 
 bool Driver::setup()
 {
-  // Services
-  params_callback_handle_ =
-    this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
 
   camera_.reset(new Capture(shared_from_this(),
                             "/video_mapping" + name_ + "/image_raw",
@@ -123,18 +132,11 @@ bool Driver::setup()
     camera_->setPropertyFromParam(cv::CAP_PROP_BUFFERSIZE, "cv_cap_prop_buffersize");
 #endif  // CV_CAP_PROP_BUFFERSIZE
 
-  // Subscribers
-  undistort_req_sub_ = 
-    this->create_subscription<std_msgs::msg::Bool>("/video_mapping/un_distort", 1, 
-                    [&](const std_msgs::msg::Bool::SharedPtr msg) -> void { undistort_img_req_bool_ = msg->data; });
   // Timers
   read_tmr_ =
     this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / read_rate_)), std::bind(&Driver::read, this));
   publish_tmr_ =
     this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / publish_rate_)), std::bind(&Driver::proceed, this));
-
-  // Publishers
-  pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", 1);
 
   cam_status_ = std::make_shared<std_msgs::msg::UInt8>();
   cam_status_->data = ONLINE;
@@ -188,6 +190,7 @@ void Driver::proceed()
         {
           cam_status_->data = LECTURE_ERROR;
           pub_cam_status_->publish(*cam_status_);
+          setup();
         }
       }
       reconnection_attempts_++;
@@ -277,6 +280,13 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       else if (name == "cv_cap_prop_auto_exposure")
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_AUTO_EXPOSURE, "cv_cap_prop_auto_exposure");
+      }
+    }
+    else if (type == rclcpp::ParameterType::PARAMETER_BOOL)
+    {
+      if (name == "re_attempt_setup")
+      {
+        setup();
       }
     }
   }

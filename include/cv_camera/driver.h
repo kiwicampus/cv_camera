@@ -179,7 +179,10 @@ class Driver : public rclcpp::Node
    * @brief Camera cv_cap_prop_auto_exposure.
    */
   float cv_cap_prop_auto_exposure_;
-  
+  /**
+   * @brief Re attempt setup means calling setup() function as if it was the first time
+   */
+   bool re_attempt_setup_;
 
   /**
    * Status of the cameras for easier handling
