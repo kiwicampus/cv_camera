@@ -48,7 +48,6 @@ void Driver::parameters_setup()
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
-  param_manager_.addParameter(re_attempt_setup_, "re_attempt_setup", false);
 
   // Video capture parameters
   param_manager_.addParameter(cv_cap_prop_brightness_, "cv_cap_prop_brightness", 0.0f);
@@ -68,6 +67,9 @@ void Driver::parameters_setup()
   pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", 1);
 
   // Services
+  restart_srv_ = this->create_service<std_srvs::srv::Trigger>(
+        "/video_mapping" + name_ + "/restart", std::bind(&Driver::RestartNodeCb, this, _1, _2, _3));
+
   params_callback_handle_ =
     this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
 }
@@ -190,7 +192,6 @@ void Driver::proceed()
         {
           cam_status_->data = LECTURE_ERROR;
           pub_cam_status_->publish(*cam_status_);
-          setup();
         }
       }
       reconnection_attempts_++;
@@ -286,15 +287,15 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         camera_->setPropertyFromParam(cv::CAP_PROP_AUTO_EXPOSURE, "cv_cap_prop_auto_exposure");
       }
     }
-    else if (type == rclcpp::ParameterType::PARAMETER_BOOL)
-    {
-      if (name == "re_attempt_setup")
-      {
-        setup();
-      }
-    }
   }
     return result;
+}
+
+void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_request const,
+                          shared_ptr_trigger_response)
+{
+  RCLCPP_WARN(get_logger(), "[%s] Restarting camera setup...", name_.c_str());
+  setup();
 }
 
 Driver::~Driver()

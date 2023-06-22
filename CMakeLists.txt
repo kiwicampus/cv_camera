@@ -26,6 +26,7 @@ find_package(rclcpp_components REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(camera_info_manager REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(utils REQUIRED)
@@ -60,6 +61,7 @@ image_transport
 cv_bridge
 camera_info_manager
 std_msgs
+std_srvs
 OpenCV
 utils
 
@@ -76,6 +78,7 @@ ament_target_dependencies(cv_camera_node
         "rclcpp"
         "sensor_msgs"
         "std_msgs"
+        "std_srvs"
         "OpenCV"
         "camera_info_manager"
         "image_transport"

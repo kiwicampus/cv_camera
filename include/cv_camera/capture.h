@@ -15,8 +15,13 @@
 #include <camera_info_manager/camera_info_manager.hpp>
 #include "std_msgs/msg/u_int8.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "std_srvs/srv/trigger.hpp"
 
 #include "utils/parameters.hpp"
+
+using std::placeholders::_1;
+using std::placeholders::_2;
+using std::placeholders::_3;
 
 /**
  * @brief namespace of this package

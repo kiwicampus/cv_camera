@@ -7,6 +7,9 @@
 
 namespace cv_camera
 {
+  typedef std::shared_ptr<rmw_request_id_t> shared_ptr_request_id;
+  typedef std::shared_ptr<std_srvs::srv::Trigger::Request> shared_ptr_trigger_request;
+  typedef std::shared_ptr<std_srvs::srv::Trigger::Response> shared_ptr_trigger_response;
 
 /**
  * @brief ROS cv camera driver.
@@ -44,6 +47,11 @@ class Driver : public rclcpp::Node
    * @brief Retrieve, publish and sleep
   */
   void proceed();
+  /**
+   * @brief Callback for restart node. Run setup() again.
+  */
+  void RestartNodeCb(shared_ptr_request_id const request_header, shared_ptr_trigger_request const request,
+                     shared_ptr_trigger_response response);
  private:
    /**
    * @brief ROS subscription for undistort request.
@@ -57,6 +65,10 @@ class Driver : public rclcpp::Node
    * @brief ROS private timer for publishing images.
    */
   rclcpp::TimerBase::SharedPtr publish_tmr_;
+  /**
+   * @brief ROS Service for triggering re setup of the node.
+   */
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr restart_srv_;
   /**
    * @brief wrapper of cv::VideoCapture.
    */
@@ -179,10 +191,6 @@ class Driver : public rclcpp::Node
    * @brief Camera cv_cap_prop_auto_exposure.
    */
   float cv_cap_prop_auto_exposure_;
-  /**
-   * @brief Re attempt setup means calling setup() function as if it was the first time
-   */
-   bool re_attempt_setup_;
 
   /**
    * Status of the cameras for easier handling
