@@ -15,10 +15,11 @@ namespace cv_camera
 Driver::Driver(const rclcpp::NodeOptions& options) : Node("cv_camera", options)
 {
   auto ptr = std::shared_ptr<Driver>(this, [](Driver*) {});
+  this->parameters_setup();
   this->setup();
 }
 
-bool Driver::setup()
+void Driver::parameters_setup()
 {
   name_ = this->get_fully_qualified_name();
 
@@ -57,8 +58,12 @@ bool Driver::setup()
   param_manager_.addParameter(cv_cap_prop_exposure_, "cv_cap_prop_exposure", 156.0f);
   param_manager_.addParameter(cv_cap_prop_auto_exposure_, "cv_cap_prop_auto_exposure", 3.0f);
 
+}
+
+bool Driver::setup()
+{
   // Services
-   params_callback_handle_ =
+  params_callback_handle_ =
     this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
 
   camera_.reset(new Capture(shared_from_this(),

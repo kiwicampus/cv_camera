@@ -31,6 +31,11 @@ class Driver : public rclcpp::Node
    * @throw cv_camera::DeviceError device open failed.
    */
   bool setup();
+
+  /**
+   * @brief parameters setup
+   */
+   void parameters_setup();
   /**
    * @brief Grab image from camera.
   */
