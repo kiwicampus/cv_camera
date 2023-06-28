@@ -68,7 +68,7 @@ void Driver::parameters_setup()
 
   // Services
   restart_srv_ = this->create_service<std_srvs::srv::Trigger>(
-        "/video_mapping" + name_ + "/restart", std::bind(&Driver::RestartNodeCb, this, _1, _2, _3));
+    name_ + "/restart", std::bind(&Driver::RestartNodeCb, this, _1, _2, _3));
 
   params_callback_handle_ =
     this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
