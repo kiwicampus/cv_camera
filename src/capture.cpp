@@ -293,10 +293,6 @@ bool Capture::setPropertyFromParam(int property_id, const std::string &param_nam
         RCLCPP_ERROR(node_->get_logger(), "[%s] Setting with code %d and value %f failed", node_->get_name(), property_id, value);
         return false;
       }
-      else
-      {
-        RCLCPP_INFO(node_->get_logger(), "[%s] Setting with code %d and value %f succeeded", node_->get_name(), property_id, value);
-      }
     }
   }
   return true;

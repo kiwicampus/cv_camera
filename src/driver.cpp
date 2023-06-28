@@ -287,6 +287,13 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         camera_->setPropertyFromParam(cv::CAP_PROP_AUTO_EXPOSURE, "cv_cap_prop_auto_exposure");
       }
     }
+    else if (type == rclcpp::ParameterType::PARAMETER_STRING)
+    {
+      if (name == "intrinsic_file")
+      {
+        camera_->loadCameraInfo();
+      }
+    }
   }
     return result;
 }
