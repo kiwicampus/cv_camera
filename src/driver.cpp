@@ -327,6 +327,7 @@ void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_reque
                           shared_ptr_trigger_response)
 {
   RCLCPP_WARN(get_logger(), "[%s] Restarting camera setup...", name_.c_str());
+  reconnection_attempts_ = 0;
   setup();
 }
 
