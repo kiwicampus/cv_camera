@@ -204,6 +204,9 @@ class Driver : public rclcpp::Node
       LECTURE_ERROR = 4
   };
 
+  std::map<int, std::string> status_map_ = {
+        {0, "UNRECOGNIZED"}, {1, "ONLINE"}, {2, "RECONNECTING"}, {3, "LOST"}, {4, "LECTURE_ERROR"}};
+
   /**
    * @brief Environment variables
    */

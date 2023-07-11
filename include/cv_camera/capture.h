@@ -18,6 +18,7 @@
 #include "std_srvs/srv/trigger.hpp"
 
 #include "utils/parameters.hpp"
+#include "utils/string_utils.hpp"
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -145,7 +146,7 @@ public:
    * @brief Publish the image that is already captured by capture().
    *
    */
-  void publish();
+  void publish(sensor_msgs::msg::Image::UniquePtr msg);
 
   /**
    * @brief accessor of CameraInfo.
@@ -212,6 +213,11 @@ public:
    * @return value of property
    */
   double getProperty(int property_id);
+
+  /**
+   * @brief Set black error image in case of error.
+   */
+  void set_error_image(const std::string& error_msg, int width = 640, int height = 360);
 
 private:
   /**

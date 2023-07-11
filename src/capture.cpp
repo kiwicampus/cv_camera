@@ -224,7 +224,8 @@ bool Capture::capture()
     return false;
   }
 
-  m_pub_image_ptr->publish(std::move(msg));
+  // Publish the image.
+  publish(std::move(msg));
 
   // Fill the cam info message.
   info_.header.stamp = timestamp_;
@@ -268,6 +269,11 @@ void Capture::rectify()
 
   // Publish rectified image
   m_pub_rect_image_ptr->publish(std::move(msg_image));
+}
+
+void Capture::publish(sensor_msgs::msg::Image::UniquePtr msg)
+{
+  m_pub_image_ptr->publish(std::move(msg));
 }
 
 void Capture::close()
@@ -395,5 +401,35 @@ void Capture::set_now(builtin_interfaces::msg::Time& time)
         time.sec = static_cast<builtin_interfaces::msg::Time::_sec_type>(now.count() / 1000000000);
         time.nanosec = now.count() % 1000000000;
     }
+}
+void Capture::set_error_image(const std::string& error_msg, int width, int height)
+{
+  // Create frame with black image
+  cv::Mat frame_aux = cv::Mat::zeros(cv::Size(width, height), CV_8UC3);
+
+  // Set font parameters
+  int font = cv::FONT_HERSHEY_SIMPLEX;
+  // empirical formula so that: when w=640 -> font=1.5 and w=1920 -> font=3.5
+  double fontScale = 0.0015625 * width + 0.3;
+  int thickness = 4;
+
+  // Get text size & calculate text position
+  cv::putText(frame_aux, error_msg, cv::Point(int(width * 0.15), int(height * 0.5)), font, fontScale,
+              cv::Scalar(255, 255, 255), thickness);
+
+  // Update message
+  sensor_msgs::msg::Image::UniquePtr msg_image(new sensor_msgs::msg::Image());
+  msg_image->header.stamp = timestamp_;
+  msg_image->header.frame_id = frame_id_;
+  msg_image->height = frame_aux.rows;
+  msg_image->width = frame_aux.cols;
+  msg_image->encoding = mat_type2encoding(frame_aux.type());
+  msg_image->is_bigendian = false;
+  msg_image->step = static_cast<sensor_msgs::msg::Image::_step_type>(frame_aux.step);
+  msg_image->data.assign(frame_aux.datastart, frame_aux.dataend);
+  
+  // publish error image
+  publish(std::move(msg_image));
+
 }
 }  // namespace cv_camera

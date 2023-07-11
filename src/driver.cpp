@@ -144,6 +144,12 @@ bool Driver::setup()
   cam_status_->data = ONLINE;
   pub_cam_status_->publish(*cam_status_);
 
+  // set error image
+  std::stringstream error_msg;
+  auto upper_label = str_toupper(name_.c_str());
+  error_msg << upper_label << " CONNECTING...";
+  camera_->set_error_image(error_msg.str());
+
   // Log camera starting configuration
   RCLCPP_INFO(get_logger(), "(GOT VIDEO) %s: DEVICE: %d - SIZE: %dX%d - RATE: %d/%d - PROP_MODE: %f - EXPOSURE: %d",
               name_.c_str(), device_id_, int(camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH)),
@@ -170,6 +176,12 @@ void Driver::proceed()
   {
     read_tmr_->cancel();
 
+    // set error image
+    std::stringstream error_msg;
+    auto upper_label = str_toupper(name_.c_str());
+    error_msg << upper_label << " " << status_map_[DISCONNECTED];
+    camera_->set_error_image(error_msg.str());
+
     cam_status_->data = DISCONNECTED;
     pub_cam_status_->publish(*cam_status_);
 
@@ -190,6 +202,12 @@ void Driver::proceed()
         }
         else
         {
+          // set error image
+          std::stringstream error_msg;
+          auto upper_label = str_toupper(name_.c_str());
+          error_msg << upper_label << " " << status_map_[LECTURE_ERROR];
+          camera_->set_error_image(error_msg.str());
+
           cam_status_->data = LECTURE_ERROR;
           pub_cam_status_->publish(*cam_status_);
         }
@@ -203,6 +221,13 @@ void Driver::proceed()
       camera_->close();
       cam_status_->data = LOST;
       pub_cam_status_->publish(*cam_status_);
+
+      // set error image
+      std::stringstream error_msg;
+      auto upper_label = str_toupper(name_.c_str());
+      error_msg << upper_label << " CAMERA " << status_map_[LOST];
+      camera_->set_error_image(error_msg.str());
+
       read_tmr_->cancel();
       publish_tmr_->cancel();
     }
