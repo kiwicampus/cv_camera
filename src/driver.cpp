@@ -212,6 +212,10 @@ void Driver::proceed()
           pub_cam_status_->publish(*cam_status_);
         }
       }
+      std::stringstream error_msg;
+      auto upper_label = str_toupper(name_.c_str());
+      error_msg << upper_label << " " << status_map_[DISCONNECTED];
+      camera_->set_error_image(error_msg.str());
       reconnection_attempts_++;
       std::this_thread::sleep_for(std::chrono::seconds(video_stream_recovery_time_));
     }
@@ -324,11 +328,13 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
 }
 
 void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_request const,
-                          shared_ptr_trigger_response)
+                          shared_ptr_trigger_response response)
 {
   RCLCPP_WARN(get_logger(), "[%s] Restarting camera setup...", name_.c_str());
   reconnection_attempts_ = 0;
   setup();
+  response->success = true;
+  response->message = "Camera setup will be restarted";
 }
 
 Driver::~Driver()
