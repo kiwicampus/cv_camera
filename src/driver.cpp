@@ -205,10 +205,10 @@ void Driver::proceed()
           // set error image
           std::stringstream error_msg;
           auto upper_label = str_toupper(name_.c_str());
-          error_msg << upper_label << " " << status_map_[LECTURE_ERROR];
+          error_msg << upper_label << " " << status_map_[READING_ERROR];
           camera_->set_error_image(error_msg.str());
 
-          cam_status_->data = LECTURE_ERROR;
+          cam_status_->data = READING_ERROR;
           pub_cam_status_->publish(*cam_status_);
         }
       }

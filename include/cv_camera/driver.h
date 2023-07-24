@@ -201,11 +201,11 @@ class Driver : public rclcpp::Node
       ONLINE = 1,
       DISCONNECTED = 2,
       LOST = 3,
-      LECTURE_ERROR = 4
+      READING_ERROR = 4
   };
 
   std::map<int, std::string> status_map_ = {
-        {0, "UNRECOGNIZED"}, {1, "ONLINE"}, {2, "RECONNECTING"}, {3, "LOST"}, {4, "LECTURE_ERROR"}};
+        {0, "UNRECOGNIZED"}, {1, "ONLINE"}, {2, "RECONNECTING"}, {3, "LOST"}, {4, "READING_ERROR"}};
 
   /**
    * @brief Environment variables
