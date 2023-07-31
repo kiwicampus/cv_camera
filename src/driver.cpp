@@ -41,6 +41,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter(read_rate_, "read_rate", 15.0f);
   param_manager_.addParameter(cam_info_period_, "cam_info_period", 5);
   param_manager_.addParameter(flip_, "flip", false);
+  param_manager_.addParameter(roi_exposure_, "roi_exposure", false);
   param_manager_.addParameter(rectify_, "rectify", false);
   param_manager_.addParameter(always_rectify_, "always_rectify", false);
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
@@ -82,7 +83,7 @@ bool Driver::setup()
                             "/video_mapping" + name_ + "/camera_info",
                             "/video_mapping" + name_ + "/image_rect",
                             frame_id_,
-                            flip_,
+                            roi_exposure_,
                             PUBLISHER_BUFFER_SIZE));
 
   if (video_path_ != "")
@@ -170,7 +171,7 @@ void Driver::read()
 
 void Driver::proceed()
 {
-  if (video_path_ != "") camera_->capture();
+  if (video_path_ != "") camera_->capture(flip_);
 
   else if (!camera_->is_opened())
   {
@@ -191,7 +192,7 @@ void Driver::proceed()
                   video_stream_recovery_tries_);
       if (camera_->open(port_))
       {
-        if (camera_->grab() && camera_->capture())
+        if (camera_->grab() && camera_->capture(flip_))
         {
           read_tmr_->reset();
           RCLCPP_WARN(get_logger(), "[%s] Reconnected", name_.c_str());
@@ -238,7 +239,7 @@ void Driver::proceed()
   }
   else
   {
-    if (!camera_->capture())
+    if (!camera_->capture(flip_))
     {
       RCLCPP_WARN(get_logger(), "[%s] Couldn't capture frame", name_.c_str());
     }
@@ -321,6 +322,14 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       if (name == "intrinsic_file")
       {
         camera_->loadCameraInfo();
+      }
+    }
+    else if (type == rclcpp::ParameterType::PARAMETER_BOOL)
+    {
+      if (name == "roi_exposure")
+      {
+        roi_exposure_ = parameter.as_bool();
+        setup();
       }
     }
   }

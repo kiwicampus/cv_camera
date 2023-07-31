@@ -7,7 +7,7 @@
 #include <string>
 
 #include <rclcpp/rclcpp.hpp>
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 #include <image_transport/image_transport.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/image_encodings.hpp>
@@ -51,7 +51,7 @@ public:
           const std::string &cam_info_topic_name,
           const std::string &rect_image_topic_name,
           const std::string &frame_id,
-          const bool flip,
+          const bool roi_exposure,
           uint32_t buffer_size);
 
   /**
@@ -129,11 +129,11 @@ public:
 
   /**
    * @brief capture an image and store.
-   *
    * to publish the captured image, call publish();
+   * @param flip flip the image around vertical axis if true
    * @return true if success to capture, false if not captured.
    */
-  bool capture();
+  bool capture(bool flip);
 
   /**
    * @brief pull an image from the camera but dont decode it
@@ -236,6 +236,12 @@ private:
   void set_now(builtin_interfaces::msg::Time& time);
 
   /**
+   * @brief Sets the exposure of the camera based on the histogram of the image
+   * @param frame to set exposure
+   */
+  void roi_exposure(cv::Mat& frame);
+
+  /**
    * @brief node handle for advertise.
    */
   rclcpp::Node::SharedPtr node_;
@@ -264,9 +270,9 @@ private:
    */
   std::string frame_id_;
   /**
-   * @brief flip image
+   * @brief Enables/Disables out custom exposure controller depending on histogram
    */
-  bool flip_;
+  bool roi_exposure_;
   /**
    * @brief timestamp of capture image
    */

@@ -10,14 +10,14 @@ namespace cv_camera
 namespace enc = sensor_msgs::image_encodings;
 
 Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name, 
-                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool flip, uint32_t buffer_size)
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, uint32_t buffer_size)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
       cam_info_topic_name_(cam_info_topic_name),
       rect_img_topic_name_(rect_img_topic_name),
       frame_id_(frame_id),
-      flip_(flip),
+      roi_exposure_(roi_exposure),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
       capture_delay_(rclcpp::Duration(0, 0.0))
@@ -199,10 +199,13 @@ bool Capture::grab()
   return cap_.grab();
 }
 
-bool Capture::capture()
+bool Capture::capture(bool flip)
 {
   if (!cap_.retrieve(bridge_.image)) return false;
-  if (flip_) cv::flip(bridge_.image, bridge_.image, -1);
+  if (flip) cv::flip(bridge_.image, bridge_.image, -1);
+
+  // Our custom made exposure set depending on ROI
+  if (roi_exposure_) roi_exposure(bridge_.image);
 
   sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
 
@@ -234,6 +237,51 @@ bool Capture::capture()
   m_pub_camera_info_ptr->publish(info_);
 
   return true;
+}
+
+void Capture::roi_exposure(cv::Mat& frame)
+{
+  cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, 1);  // disable auto exposure
+  double exposure = cap_.get(cv::CAP_PROP_EXPOSURE);
+
+  // define ROI for the center of the image
+  cv::Rect roi(frame.cols / 4, frame.rows / 4, frame.cols / 2, frame.rows / 2);
+  cv::Mat roiFrame = frame(roi);
+
+  // convert the ROI to grayscale
+  cv::Mat grayRoi;
+  cv::cvtColor(roiFrame, grayRoi, cv::COLOR_BGR2GRAY);
+
+  // calculate the histogram
+  int histSize = 256;
+  float range[] = { 0, 256 } ; // the upper boundary is exclusive
+  const float* histRange = { range };
+  cv::Mat hist;
+  cv::calcHist(&grayRoi, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange);
+
+  // analyze the histogram to decide on exposure adjustment
+  double underExposedThreshold = 0.1 * grayRoi.total();
+  double overExposedThreshold = 0.1 * grayRoi.total();
+  // Compute overexposed and underexposed pixels
+  double underExposedPixels = 0;
+  double overExposedPixels = 0;
+  for (int i = 0; i < histSize; i++) {
+      if (i < 50) {
+          underExposedPixels += hist.at<float>(i);
+      } else if (i > 200) {
+          overExposedPixels += hist.at<float>(i);
+      }
+  }
+
+  if (underExposedPixels > underExposedThreshold) {  // underexposed
+      RCLCPP_DEBUG(node_->get_logger(), "[%s] Underexposed: %f vs cap exposure: %f", node_->get_name(), underExposedPixels, cap_.get(cv::CAP_PROP_EXPOSURE));
+      exposure += 1;
+  } else if (overExposedPixels > overExposedThreshold) {  // overexposed
+      RCLCPP_DEBUG(node_->get_logger(), "[%s] Overexposed: %f vs cap exposure: %f", node_->get_name(), overExposedPixels, cap_.get(cv::CAP_PROP_EXPOSURE));
+      exposure -= 1;
+  }
+
+  cap_.set(cv::CAP_PROP_EXPOSURE, exposure);  // set new exposure
 }
 
 

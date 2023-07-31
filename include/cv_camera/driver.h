@@ -112,9 +112,13 @@ class Driver : public rclcpp::Node
   std::string frame_id_;
 
   /**
-   * @brief Flip image.
+   * @brief Enables/disables image flipping vertically
   */
   bool flip_;
+  /**
+   * @brief Enables/disables our custom made exposure control depending on the ROI
+  */
+  bool roi_exposure_;
   /**
    * @brief Undistort image request from console
   */
