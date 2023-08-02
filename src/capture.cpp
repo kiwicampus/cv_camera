@@ -23,9 +23,9 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
       capture_delay_(rclcpp::Duration(0, 0.0))
 {
     int dur = 0;
-    m_pub_image_ptr = node->create_publisher<sensor_msgs::msg::Image>(img_topic_name_, 1);
-    m_pub_rect_image_ptr = node->create_publisher<sensor_msgs::msg::Image>(rect_img_topic_name_, 1);
-    m_pub_camera_info_ptr = node->create_publisher<sensor_msgs::msg::CameraInfo>(cam_info_topic_name_, 1);
+    m_pub_image_ptr = node->create_publisher<sensor_msgs::msg::Image>(img_topic_name_, rclcpp::QoS(rclcpp::SensorDataQoS()));
+    m_pub_rect_image_ptr = node->create_publisher<sensor_msgs::msg::Image>(rect_img_topic_name_, rclcpp::QoS(rclcpp::SensorDataQoS()));
+    m_pub_camera_info_ptr = node->create_publisher<sensor_msgs::msg::CameraInfo>(cam_info_topic_name_, rclcpp::QoS(rclcpp::SensorDataQoS()));
     node_->get_parameter_or("capture_delay", dur, dur);
     this->capture_delay_ = rclcpp::Duration(dur, 0.0);
 }
