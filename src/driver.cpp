@@ -24,8 +24,6 @@ void Driver::parameters_setup()
   name_ = this->get_fully_qualified_name();
 
   // OpenCV Parameters
-  this->declare_parameter("width", 640.0);
-  this->declare_parameter("height", 360.0);
   this->declare_parameter("fourcc", rclcpp::PARAMETER_STRING_ARRAY);
   this->declare_parameter("cv_cap_prop_fourcc", 0.0);
   this->get_parameter("fourcc", fourcc_);
@@ -51,6 +49,8 @@ void Driver::parameters_setup()
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
 
   // Video capture parameters
+  param_manager_.addParameter(width_, "width", 640.0f);
+  param_manager_.addParameter(height_, "height", 360.0f);
   param_manager_.addParameter(cv_cap_prop_brightness_, "cv_cap_prop_brightness", 0.0f);
   param_manager_.addParameter(cv_cap_prop_contrast_, "cv_cap_prop_contrast", 32.0f);
   param_manager_.addParameter(cv_cap_prop_saturation_, "cv_cap_prop_saturation", 56.0f);
@@ -282,7 +282,8 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       }
       else if (name == "width" || name == "height")
       {
-        setup();
+        camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "width");
+        camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "height");
       }
       else if (name == "cv_cap_prop_brightness")
       {

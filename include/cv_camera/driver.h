@@ -168,6 +168,14 @@ class Driver : public rclcpp::Node
 
   // video capture parameters
   /**
+   * @brief Camera cv_cap_prop_frame_width.
+   */
+  float width_;
+  /**
+   * @brief Camera cv_cap_prop_frame_height.
+   */
+  float height_;
+  /**
    * @brief Camera cv_cap_prop_brightness.
    */
   float cv_cap_prop_brightness_;
