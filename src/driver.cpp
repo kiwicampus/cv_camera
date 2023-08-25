@@ -65,7 +65,11 @@ void Driver::parameters_setup()
                     [&](const std_msgs::msg::Bool::SharedPtr msg) -> void { undistort_img_req_bool_ = msg->data; });
 
   // Publishers
-  pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", 1);
+  // In intra process communication, we cant use transient local,
+  // so we disable the intra process for this publisher
+  rclcpp::PublisherOptionsWithAllocator<std::allocator<void>> options;
+  options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
+  pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", rclcpp::QoS(1).keep_all().transient_local().reliable(), options);
 
   // Services
   restart_srv_ = this->create_service<std_srvs::srv::Trigger>(
