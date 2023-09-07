@@ -50,8 +50,8 @@ void Driver::parameters_setup()
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
 
   // Video capture parameters
-  param_manager_.addParameter(width_, "width", 640.0f);
-  param_manager_.addParameter(height_, "height", 360.0f);
+  param_manager_.addParameter(width_, "width", 640);
+  param_manager_.addParameter(height_, "height", 360);
   param_manager_.addParameter(cv_cap_prop_brightness_, "cv_cap_prop_brightness", 0.0f);
   param_manager_.addParameter(cv_cap_prop_contrast_, "cv_cap_prop_contrast", 32.0f);
   param_manager_.addParameter(cv_cap_prop_saturation_, "cv_cap_prop_saturation", 56.0f);

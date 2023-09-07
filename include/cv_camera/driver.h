@@ -173,11 +173,11 @@ class Driver : public rclcpp::Node
   /**
    * @brief Camera cv_cap_prop_frame_width.
    */
-  float width_;
+  int width_;
   /**
    * @brief Camera cv_cap_prop_frame_height.
    */
-  float height_;
+  int height_;
   /**
    * @brief Camera cv_cap_prop_brightness.
    */
