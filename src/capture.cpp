@@ -78,7 +78,7 @@ void Capture::loadCameraInfo()
       cv::Mat D = cv::Mat(1, 5, CV_64F, info_.d.data());
       cv::initUndistortRectifyMap(K, D, R, P, cv::Size(info_.width, info_.height), CV_16SC2, map1_, map2_);
   }
-  else if (info_.distortion_model == "equidistant")
+  else if (info_.distortion_model == "equidistant" || info_.distortion_model == "fisheye")
   {
       cv::Mat D = cv::Mat(1, 4, CV_64F, info_.d.data());
       cv::fisheye::initUndistortRectifyMap(K, D, R, P, cv::Size(info_.width, info_.height), CV_16SC2, map1_, map2_);
