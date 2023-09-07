@@ -206,7 +206,7 @@ bool Capture::capture(bool flip)
   if (flip) cv::flip(bridge_.image, bridge_.image, -1);
 
   // Our custom made exposure set depending on ROI
-  if (roi_exposure_) roi_exposure(bridge_.image);
+  if (roi_exposure_) custom_roi_exposure(bridge_.image);
 
   sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
 
@@ -240,7 +240,7 @@ bool Capture::capture(bool flip)
   return true;
 }
 
-void Capture::roi_exposure(cv::Mat& frame)
+void Capture::custom_roi_exposure(cv::Mat& frame)
 {
   cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, 1);  // disable auto exposure
   double exposure = cap_.get(cv::CAP_PROP_EXPOSURE);

@@ -246,7 +246,7 @@ private:
    * @brief Sets the exposure of the camera based on the histogram of the image
    * @param frame to set exposure
    */
-  void roi_exposure(cv::Mat& frame);
+  void custom_roi_exposure(cv::Mat& frame);
 
   /**
    * @brief node handle for advertise.
