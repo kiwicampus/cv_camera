@@ -102,6 +102,13 @@ public:
   void rectify();
 
   /**
+   * @brief Report if the calibration is bad and outputs mostly black images.
+   * 
+   * @param rect_black_px_threshold 
+   */
+  void report_bad_calibration(float rect_black_px_threshold);
+
+  /**
    * @brief Open default camera device.
    *
    * This opens with device 0.
@@ -277,6 +284,10 @@ private:
    * @brief timestamp of capture image
    */
   rclcpp::Time timestamp_;
+  /**
+   * @brief Rectified image
+   */
+  cv::Mat rect_image_;
 
   /**
    * @brief Rectification maps
