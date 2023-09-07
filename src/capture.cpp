@@ -358,7 +358,7 @@ bool Capture::setPropertyFromParam(int property_id, const std::string &param_nam
     double value = 0.0;
     if (node_->get_parameter(param_name, value))
     {
-      if (!cap_.set(property_id, static_cast<float>(value)) && value != getProperty(property_id))
+      if (!cap_.set(property_id, value) && value != getProperty(property_id))
       {
         RCLCPP_ERROR(node_->get_logger(), "[%s] Setting with code %d and value %f failed", node_->get_name(), property_id, value);
         return false;

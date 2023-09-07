@@ -52,6 +52,10 @@ void Driver::parameters_setup()
   // Video capture parameters
   param_manager_.addParameter(width_, "width", 640);
   param_manager_.addParameter(height_, "height", 360);
+  this->declare_parameter("cv_cap_prop_frame_width", 640.0);
+  this->declare_parameter("cv_cap_prop_frame_height", 360.0);
+  this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_width", (double)width_));
+  this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_height", (double)height_));
   param_manager_.addParameter(cv_cap_prop_brightness_, "cv_cap_prop_brightness", 0.0f);
   param_manager_.addParameter(cv_cap_prop_contrast_, "cv_cap_prop_contrast", 32.0f);
   param_manager_.addParameter(cv_cap_prop_saturation_, "cv_cap_prop_saturation", 56.0f);
@@ -114,8 +118,8 @@ bool Driver::setup()
 
   camera_->setPropertyFromParam(cv::CAP_PROP_POS_MSEC, "cv_cap_prop_pos_msec");
   camera_->setPropertyFromParam(cv::CAP_PROP_POS_AVI_RATIO, "cv_cap_prop_pos_avi_ratio");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "width");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "height");
+  camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "cv_cap_prop_frame_width");
+  camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "cv_cap_prop_frame_height");
   camera_->setPropertyFromParam(cv::CAP_PROP_FPS, "cv_cap_prop_fps");
   camera_->setPropertyFromParam(cv::CAP_PROP_FOURCC, "cv_cap_prop_fourcc");
   camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_COUNT, "cv_cap_prop_frame_count");
@@ -288,10 +292,10 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         publish_tmr_ = this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / publish_rate_)),
                                                std::bind(&Driver::proceed, this));
       }
-      else if (name == "width" || name == "height")
+      else if (name == "cv_cap_prop_frame_width" || name == "cv_cap_prop_frame_height")
       {
-        camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "width");
-        camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "height");
+        camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "cv_cap_prop_frame_width");
+        camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "cv_cap_prop_frame_height");
       }
       else if (name == "cv_cap_prop_brightness")
       {
@@ -324,6 +328,21 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       else if (name == "cv_cap_prop_auto_exposure")
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_AUTO_EXPOSURE, "cv_cap_prop_auto_exposure");
+      }
+    }
+    else if (type == rclcpp::ParameterType::PARAMETER_INTEGER)
+    {
+      if (name == "width")
+      {
+        width_ = parameter.as_int();
+        this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_width", (double)width_));
+        camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "cv_cap_prop_frame_width");
+      }
+      else if (name == "height")
+      {
+        height_ = parameter.as_int();
+        this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_height", (double)height_));
+        camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "cv_cap_prop_frame_height");
       }
     }
     else if (type == rclcpp::ParameterType::PARAMETER_STRING)
