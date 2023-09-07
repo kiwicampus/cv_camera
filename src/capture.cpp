@@ -340,7 +340,7 @@ void Capture::report_bad_calibration(float rect_black_px_threshold)
     {
       bad_calibration_reported_ = true;
       auto msg = std::make_unique<std_msgs::msg::String>();
-      msg->data = "CAM29";
+      msg->data = "CAM29&" + *node_->get_name();
       m_bot_status_pub_ptr->publish(std::move(msg));
     }
   }
