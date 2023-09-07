@@ -26,6 +26,8 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
     m_pub_image_ptr = node->create_publisher<sensor_msgs::msg::Image>(img_topic_name_, rclcpp::QoS(rclcpp::SensorDataQoS()));
     m_pub_rect_image_ptr = node->create_publisher<sensor_msgs::msg::Image>(rect_img_topic_name_, rclcpp::QoS(rclcpp::SensorDataQoS()));
     m_pub_camera_info_ptr = node->create_publisher<sensor_msgs::msg::CameraInfo>(cam_info_topic_name_, rclcpp::QoS(rclcpp::SensorDataQoS()));
+    // Bot Status Event
+    m_bot_status_pub_ptr = node->create_publisher<std_msgs::msg::String>("/bot_status/actions", rclcpp::QoS(1));
     node_->get_parameter_or("capture_delay", dur, dur);
     this->capture_delay_ = rclcpp::Duration(dur, 0.0);
 }
@@ -333,6 +335,14 @@ void Capture::report_bad_calibration(float rect_black_px_threshold)
   {
     RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000,
                              "[%s] Rect img more than %f pct black. Posible bad calibration for that lens", node_->get_name(), rect_black_px_threshold);
+
+    if (!bad_calibration_reported_)
+    {
+      bad_calibration_reported_ = true;
+      auto msg = std::make_unique<std_msgs::msg::String>();
+      msg->data = "CAM29";
+      m_bot_status_pub_ptr->publish(std::move(msg));
+    }
   }
 }
 

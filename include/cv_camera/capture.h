@@ -15,6 +15,7 @@
 #include <camera_info_manager/camera_info_manager.hpp>
 #include "std_msgs/msg/u_int8.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/trigger.hpp"
 
 #include "utils/parameters.hpp"
@@ -288,7 +289,10 @@ private:
    * @brief Rectified image
    */
   cv::Mat rect_image_;
-
+  /**
+   * @brief Flag to indicate if the bad calibration was reported through events
+   */
+  bool bad_calibration_reported_ = false;
   /**
    * @brief Rectification maps
    */
@@ -352,6 +356,8 @@ private:
    * @brief Final publisher for camera info messages
    */
   rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr m_pub_camera_info_ptr;
+
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr m_bot_status_pub_ptr;
 
 };
 
