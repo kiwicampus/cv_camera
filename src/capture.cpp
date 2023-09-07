@@ -35,6 +35,7 @@ void Capture::loadCameraInfo()
   std::string url;
   if (node_->get_parameter("intrinsic_file", url))
   {
+    if (url == "") return;
     url = "file://" + url;
     if (info_manager_.validateURL(url))
     {
