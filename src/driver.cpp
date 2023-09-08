@@ -254,9 +254,7 @@ void Driver::proceed()
     else
     {
       if (always_rectify_ || (rectify_ && undistort_img_req_bool_))
-      {
         camera_->rectify();
-      }
     }
   }
 }

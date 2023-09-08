@@ -15,7 +15,6 @@
 #include <camera_info_manager/camera_info_manager.hpp>
 #include "std_msgs/msg/u_int8.hpp"
 #include "std_msgs/msg/bool.hpp"
-#include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/trigger.hpp"
 
 #include "utils/parameters.hpp"
@@ -101,13 +100,6 @@ public:
    * This uses the camera info loaded by loadCameraInfo() and creates a rectified image.
    */
   void rectify();
-
-  /**
-   * @brief Report if the calibration is bad and outputs mostly black images.
-   * 
-   * @param rect_black_px_threshold 
-   */
-  void report_bad_calibration(float rect_black_px_threshold);
 
   /**
    * @brief Open default camera device.
