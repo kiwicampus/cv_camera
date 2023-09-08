@@ -42,7 +42,6 @@ void Driver::parameters_setup()
   param_manager_.addParameter(roi_exposure_, "roi_exposure", false);
   param_manager_.addParameter(rectify_, "rectify", false);
   param_manager_.addParameter(always_rectify_, "always_rectify", false);
-  param_manager_.addParameter(rect_black_px_threshold_, "rect_black_px_threshold", 0.5f);
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
@@ -257,7 +256,6 @@ void Driver::proceed()
       if (always_rectify_ || (rectify_ && undistort_img_req_bool_))
       {
         camera_->rectify();
-        camera_->report_bad_calibration(rect_black_px_threshold_);
       }
     }
   }

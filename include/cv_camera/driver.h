@@ -132,10 +132,6 @@ class Driver : public rclcpp::Node
   */
   bool always_rectify_;
   /**
-   * @brief Rectified image black pixels threshold. To identify posible bad calibration
-  */
-  float rect_black_px_threshold_;
-  /**
    * @brief Video path
   */
   std::string video_path_;
