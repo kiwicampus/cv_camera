@@ -239,7 +239,7 @@ private:
    * @brief Sets the exposure of the camera based on the histogram of the image
    * @param frame to set exposure
    */
-  void roi_exposure(cv::Mat& frame);
+  void custom_roi_exposure(cv::Mat& frame);
 
   /**
    * @brief node handle for advertise.
@@ -277,7 +277,10 @@ private:
    * @brief timestamp of capture image
    */
   rclcpp::Time timestamp_;
-
+  /**
+   * @brief Rectified image
+   */
+  cv::Mat rect_image_;
   /**
    * @brief Rectification maps
    */
@@ -341,7 +344,6 @@ private:
    * @brief Final publisher for camera info messages
    */
   rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr m_pub_camera_info_ptr;
-
 };
 
 } // namespace cv_camera

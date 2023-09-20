@@ -35,6 +35,7 @@ void Capture::loadCameraInfo()
   std::string url;
   if (node_->get_parameter("intrinsic_file", url))
   {
+    if (url == "") return;
     url = "file://" + url;
     if (info_manager_.validateURL(url))
     {
@@ -77,7 +78,7 @@ void Capture::loadCameraInfo()
       cv::Mat D = cv::Mat(1, 5, CV_64F, info_.d.data());
       cv::initUndistortRectifyMap(K, D, R, P, cv::Size(info_.width, info_.height), CV_16SC2, map1_, map2_);
   }
-  else if (info_.distortion_model == "equidistant")
+  else if (info_.distortion_model == "equidistant" || info_.distortion_model == "fisheye")
   {
       cv::Mat D = cv::Mat(1, 4, CV_64F, info_.d.data());
       cv::fisheye::initUndistortRectifyMap(K, D, R, P, cv::Size(info_.width, info_.height), CV_16SC2, map1_, map2_);
@@ -205,7 +206,7 @@ bool Capture::capture(bool flip)
   if (flip) cv::flip(bridge_.image, bridge_.image, -1);
 
   // Our custom made exposure set depending on ROI
-  if (roi_exposure_) roi_exposure(bridge_.image);
+  if (roi_exposure_) custom_roi_exposure(bridge_.image);
 
   sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
 
@@ -239,7 +240,7 @@ bool Capture::capture(bool flip)
   return true;
 }
 
-void Capture::roi_exposure(cv::Mat& frame)
+void Capture::custom_roi_exposure(cv::Mat& frame)
 {
   cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, 1);  // disable auto exposure
   double exposure = cap_.get(cv::CAP_PROP_EXPOSURE);
@@ -294,7 +295,7 @@ void Capture::rectify()
     return;
   }
 
-  cv::Mat rect_image = bridge_.image;
+  rect_image_ = bridge_.image;
 
   // return if map empty
   if (map1_.empty() || map2_.empty())
@@ -302,18 +303,18 @@ void Capture::rectify()
       RCLCPP_WARN(node_->get_logger(), "[%s] Map1 or Map2 is empty", node_->get_name());
       return;
   }
-  cv::remap(rect_image, rect_image, map1_, map2_, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
+  cv::remap(rect_image_, rect_image_, map1_, map2_, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 
   // Update message
   sensor_msgs::msg::Image::UniquePtr msg_image(new sensor_msgs::msg::Image());
   msg_image->header.stamp = timestamp_;
   msg_image->header.frame_id = frame_id_;
-  msg_image->height = rect_image.rows;
-  msg_image->width = rect_image.cols;
-  msg_image->encoding = mat_type2encoding(rect_image.type());
+  msg_image->height = rect_image_.rows;
+  msg_image->width = rect_image_.cols;
+  msg_image->encoding = mat_type2encoding(rect_image_.type());
   msg_image->is_bigendian = false;
-  msg_image->step = static_cast<sensor_msgs::msg::Image::_step_type>(rect_image.step);
-  msg_image->data.assign(rect_image.datastart, rect_image.dataend);
+  msg_image->step = static_cast<sensor_msgs::msg::Image::_step_type>(rect_image_.step);
+  msg_image->data.assign(rect_image_.datastart, rect_image_.dataend);
 
   // Publish rectified image
   m_pub_rect_image_ptr->publish(std::move(msg_image));
