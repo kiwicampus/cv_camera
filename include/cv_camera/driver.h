@@ -8,8 +8,12 @@
 namespace cv_camera
 {
   typedef std::shared_ptr<rmw_request_id_t> shared_ptr_request_id;
+
   typedef std::shared_ptr<std_srvs::srv::Trigger::Request> shared_ptr_trigger_request;
   typedef std::shared_ptr<std_srvs::srv::Trigger::Response> shared_ptr_trigger_response;
+
+  typedef std::shared_ptr<std_srvs::srv::SetBool::Request> shared_ptr_bool_request;
+  typedef std::shared_ptr<std_srvs::srv::SetBool::Response> shared_ptr_bool_response;
 
 /**
  * @brief ROS cv camera driver.
@@ -52,6 +56,13 @@ class Driver : public rclcpp::Node
   */
   void RestartNodeCb(shared_ptr_request_id const request_header, shared_ptr_trigger_request const request,
                      shared_ptr_trigger_response response);
+  /**
+   * @brief callback for pause/resume image publishing
+   *        1 -> pause
+   *        0 -> resume
+   */
+  void PauseImageCb(shared_ptr_request_id const request_header, shared_ptr_bool_request const request,
+                     shared_ptr_bool_response response);
  private:
    /**
    * @brief ROS subscription for undistort request.
@@ -69,6 +80,10 @@ class Driver : public rclcpp::Node
    * @brief ROS Service for triggering re setup of the node.
    */
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr restart_srv_;
+  /**
+   * @brief ROS Service for pausing/resuming image publishing.
+   */
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr pause_img_srv_;
   /**
    * @brief wrapper of cv::VideoCapture.
    */
@@ -162,6 +177,7 @@ class Driver : public rclcpp::Node
      2 -> Disconnected
      3 -> Offline/Lost  [No for stereo]
      4 -> Lecture Error [No for stereo]
+     5 -> Paused
   */
   std::shared_ptr<std_msgs::msg::UInt8> cam_status_;
 
@@ -212,11 +228,13 @@ class Driver : public rclcpp::Node
       ONLINE = 1,
       DISCONNECTED = 2,
       LOST = 3,
-      READING_ERROR = 4
+      READING_ERROR = 4,
+      PAUSED = 5
   };
 
   std::map<int, std::string> status_map_ = {
-        {0, "UNRECOGNIZED"}, {1, "ONLINE"}, {2, "RECONNECTING"}, {3, "LOST"}, {4, "READING_ERROR"}};
+      {0, "UNRECOGNIZED"}, {1, "ONLINE"}, {2, "RECONNECTING"}, {3, "LOST"}, {4, "READING_ERROR"}, {5, "PAUSED"}
+    };
 
   /**
    * @brief Environment variables
