@@ -377,7 +377,6 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
 {
   if (request->data)
   {
-    RCLCPP_WARN(get_logger(), "[%s] Pausing camera read and pub...", name_.c_str());
     read_tmr_->cancel();
     publish_tmr_->cancel();
     cam_status_->data = PAUSED;
@@ -388,7 +387,6 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
   }
   else
   {
-    RCLCPP_WARN(get_logger(), "[%s] Resuming camera read and pub...", name_.c_str());
     read_tmr_->reset();
     publish_tmr_->reset();
     cam_status_->data = ONLINE;
