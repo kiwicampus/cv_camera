@@ -16,6 +16,7 @@
 #include "std_msgs/msg/u_int8.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "std_srvs/srv/trigger.hpp"
+#include "std_srvs/srv/set_bool.hpp"
 
 #include "utils/parameters.hpp"
 #include "utils/string_utils.hpp"
