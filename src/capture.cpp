@@ -114,6 +114,90 @@ void Capture::loadCameraInfo()
   }
 }
 
+void Capture::loadCameraInfo_2()
+{
+  std::string url;
+  if (node_->get_parameter("intrinsic_file_2", url))
+  {
+    if (url == "") return;
+    url = "file://" + url;
+    if (info_manager_.validateURL(url))
+    {
+      info_manager_.loadCameraInfo(url);
+    }
+    else
+    {
+      RCLCPP_ERROR(node_->get_logger(), "[%s] Invalid camera info URL %s", node_->get_name(), url.c_str());
+    }
+  }
+
+  info_2_ = info_manager_.getCameraInfo();
+
+  // If zero distortion, just pass the message along
+  bool zero_distortion = true;
+
+  for (size_t i = 0; i < info_2_.d.size(); ++i)
+  {
+      if (info_2_.d[i] != 0.0)
+      {
+          zero_distortion = false;
+          break;
+      }
+  }
+
+  // This will be true if D is empty/zero sized
+  if (zero_distortion)
+  {
+      RCLCPP_ERROR(node_->get_logger(), "[%s] No distortion coefficients found, rectification cannot be done", node_->get_name());
+      return;
+  }
+
+  cv::Mat K = cv::Mat(3, 3, CV_64F, info_2_.k.data());
+  cv::Mat R = cv::Mat(3, 3, CV_64F, info_2_.r.data());
+  cv::Mat P = cv::Mat(3, 4, CV_64F, info_2_.p.data());
+
+  // select depending on distortion model
+  if (info_2_.distortion_model == "plumb_bob")
+  {
+      cv::Mat D = cv::Mat(1, 5, CV_64F, info_2_.d.data());
+      cv::initUndistortRectifyMap(K, D, R, P, cv::Size(info_2_.width, info_2_.height), CV_16SC2, map1_2_, map2_2_);
+  }
+  else if (info_2_.distortion_model == "equidistant" || info_2_.distortion_model == "fisheye")
+  {
+      cv::Mat D = cv::Mat(1, 4, CV_64F, info_2_.d.data());
+      cv::fisheye::initUndistortRectifyMap(K, D, R, P, cv::Size(info_2_.width, info_2_.height), CV_16SC2, map1_2_, map2_2_);
+  }
+  else
+  {
+      RCLCPP_ERROR(node_->get_logger(), "[%s] Unsupported distortion model: %s", node_->get_name(), info_2_.distortion_model.c_str());
+      return;
+  }
+
+  rescale_camera_info_ = false;
+  node_->get_parameter_or("rescale_camera_info", rescale_camera_info_, rescale_camera_info_);
+
+
+  for (int i = 0;; ++i)
+  {
+    int code = 0;
+    double value = 0.0;
+    std::stringstream stream;
+    stream << "property_" << i << "_code";
+    const std::string param_for_code = stream.str();
+    stream.str("");
+    stream << "property_" << i << "_value";
+    const std::string param_for_value = stream.str();
+    if (!node_->get_parameter(param_for_code, code) || !node_->get_parameter(param_for_value, value))
+    {
+      break;
+    }
+    if (!cap_.set(code, value))
+    {
+      RCLCPP_ERROR(node_->get_logger(), "[%s] Setting with code %d and value %f failed", node_->get_name(),code, value);
+    }
+  }
+}
+
 void Capture::rescaleCameraInfo(uint width, uint height)
 {
   double width_coeff = static_cast<double>(width) / info_.width;
@@ -142,6 +226,7 @@ bool Capture::open(int32_t device_id)
   }
   
   loadCameraInfo();
+  loadCameraInfo_2();
   return true;
 }
 
@@ -167,6 +252,8 @@ bool Capture::open(const std::string &port)
   }
   
   loadCameraInfo();
+  loadCameraInfo_2();
+
   return true;
 }
 
@@ -186,6 +273,8 @@ bool Capture::openFile(const std::string &file_path)
   
   video_path_ = file_path;
   loadCameraInfo();
+  loadCameraInfo_2();
+
   return true;
 }
 
@@ -206,7 +295,7 @@ bool Capture::capture(bool flip)
   if (flip) cv::flip(bridge_.image, bridge_.image, -1);
 
   // Our custom made exposure set depending on ROI
-  if (roi_exposure_) custom_roi_exposure(bridge_.image);
+  // if (roi_exposure_) custom_roi_exposure(bridge_.image);
 
   sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
 
@@ -306,6 +395,7 @@ void Capture::rectify()
   cv::remap(rect_image_, rect_image_, map1_, map2_, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 
   // Update message
+  if (roi_exposure_) return;
   sensor_msgs::msg::Image::UniquePtr msg_image(new sensor_msgs::msg::Image());
   msg_image->header.stamp = timestamp_;
   msg_image->header.frame_id = frame_id_;
@@ -315,6 +405,41 @@ void Capture::rectify()
   msg_image->is_bigendian = false;
   msg_image->step = static_cast<sensor_msgs::msg::Image::_step_type>(rect_image_.step);
   msg_image->data.assign(rect_image_.datastart, rect_image_.dataend);
+
+  // Publish rectified image
+  m_pub_rect_image_ptr->publish(std::move(msg_image));
+}
+
+void Capture::double_rectify()
+{
+  if (!roi_exposure_) return; 
+    // Dont publish image if empty
+  if (rect_image_.empty())
+  {
+    RCLCPP_WARN_ONCE(node_->get_logger(), "[%s] Frame is empty.", node_->get_name());
+    return;
+  }
+
+  rect_image_2_ = rect_image_;
+
+  // return if map empty
+  if (map1_2_.empty() || map2_2_.empty())
+  {
+      RCLCPP_WARN(node_->get_logger(), "[%s] Map1 or Map2 is empty", node_->get_name());
+      return;
+  }
+  cv::remap(rect_image_2_, rect_image_2_, map1_2_, map2_2_, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
+
+  // Update message
+  sensor_msgs::msg::Image::UniquePtr msg_image(new sensor_msgs::msg::Image());
+  msg_image->header.stamp = timestamp_;
+  msg_image->header.frame_id = frame_id_;
+  msg_image->height = rect_image_2_.rows;
+  msg_image->width = rect_image_2_.cols;
+  msg_image->encoding = mat_type2encoding(rect_image_2_.type());
+  msg_image->is_bigendian = false;
+  msg_image->step = static_cast<sensor_msgs::msg::Image::_step_type>(rect_image_2_.step);
+  msg_image->data.assign(rect_image_2_.datastart, rect_image_2_.dataend);
 
   // Publish rectified image
   m_pub_rect_image_ptr->publish(std::move(msg_image));

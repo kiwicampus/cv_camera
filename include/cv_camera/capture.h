@@ -95,12 +95,21 @@ public:
    */
   void loadCameraInfo();
 
+  void loadCameraInfo_2();
+
   /**
    * @brief Rectify image using camera info.
    *
    * This uses the camera info loaded by loadCameraInfo() and creates a rectified image.
    */
   void rectify();
+
+  /**
+   * @brief Rectify image using camera info, over the already rectified image
+   *
+   * This uses the camera info loaded by loadCameraInfo() and creates a rectified image.
+   */
+  void double_rectify();
 
   /**
    * @brief Open default camera device.
@@ -282,10 +291,12 @@ private:
    * @brief Rectified image
    */
   cv::Mat rect_image_;
+  cv::Mat rect_image_2_;
   /**
    * @brief Rectification maps
    */
   cv::Mat map1_, map2_;
+  cv::Mat map1_2_, map2_2_;
   /**
    * @brief size of publisher buffer
    */
@@ -317,6 +328,7 @@ private:
    * currently this has image size (width/height) only.
    */
   sensor_msgs::msg::CameraInfo info_;
+  sensor_msgs::msg::CameraInfo info_2_;
 
   /**
    * @brief camera info manager

@@ -41,8 +41,10 @@ void Driver::parameters_setup()
   param_manager_.addParameter(flip_, "flip", false);
   param_manager_.addParameter(roi_exposure_, "roi_exposure", false);
   param_manager_.addParameter(rectify_, "rectify", false);
+  param_manager_.addParameter(double_rectify_, "double_rectify", false);
   param_manager_.addParameter(always_rectify_, "always_rectify", false);
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
+  param_manager_.addParameter<std::string>(intrinsic_file_2_, "intrinsic_file_2", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
@@ -256,7 +258,13 @@ void Driver::proceed()
     else
     {
       if (always_rectify_ || (rectify_ && undistort_img_req_bool_))
+      {
         camera_->rectify();
+      }
+      if (double_rectify_)
+      {
+        camera_->double_rectify();
+      }
     }
   }
 }
@@ -355,7 +363,7 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       if (name == "roi_exposure")
       {
         roi_exposure_ = parameter.as_bool();
-        setup();
+        // setup();
       }
     }
   }

@@ -142,6 +142,7 @@ class Driver : public rclcpp::Node
    * @brief Rectify image.
   */
   bool rectify_;
+  bool double_rectify_;
   /**
    * @brief Always publish rectified image.
   */
@@ -162,6 +163,7 @@ class Driver : public rclcpp::Node
    * @brief Camera intrinsic parameters file
   */
   std::string intrinsic_file_;
+  std::string intrinsic_file_2_;
 
   /**
    * @brief Fourcc vector to be used in cv::VideoCapture::set
