@@ -6,17 +6,6 @@ from typing import Dict, List, Union, Tuple
 
 from python_utils.vision_utils import printlog
 
-
-# cam_labels remapping
-remap_label = {
-    "stereo": "S",
-    "zoom": "Z",
-    "left": "LL",
-    "right": "RR",
-    "rear": "B",
-    "inner": "I",
-}
-
 class Camera:
     def __init__(
         self,
@@ -110,8 +99,8 @@ def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file:
     # Initializes camera objects
     camera_handlers = [
         Camera(camera_label, device_number, cam_port, camera_format, 
-               os.path.join(params_file, calibration_params_dict[remap_label[camera_label]]) 
-               if remap_label[camera_label] in calibration_params_dict.keys()
+               os.path.join(params_file, calibration_params_dict[camera_label]) 
+               if camera_label in calibration_params_dict.keys()
                else "")
         for device_number, camera_label, camera_format, cam_port in zip(
             video_numbers, non_stereo_labels, cams_formats, cams_ports
@@ -125,7 +114,7 @@ def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file:
             camera_handlers.append(
                 Camera(
                     label = cam_label,
-                    intrinsic_file = os.path.join(params_file, calibration_params_dict[remap_label[cam_label]]),
+                    intrinsic_file = os.path.join(params_file, calibration_params_dict[cam_label]),
                     video_path = param["ros__parameters"]["video_path"],
                 )
             )
