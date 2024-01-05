@@ -2,9 +2,64 @@ import re
 import os
 import yaml
 import subprocess
+import inspect
 from typing import Dict, List, Union, Tuple
 
-from python_utils.vision_utils import printlog
+
+class bcolors:
+    """!
+    Class for defining the color used by the printlog function
+    """
+
+    LOG = {
+        "WARN": ["\033[93m", "WARN"],
+        "WARNING": ["\033[93m", "WARN"],
+        "ERROR": ["\033[91m", "ERROR"],
+        "OKGREEN": ["\033[32m", "INFO"],
+        "OKPURPLE": ["\033[35m", "INFO"],
+        "INFO": ["\033[0m", "INFO"],  # ['\033[94m', "INFO"],
+        "BOLD": ["\033[1m", "INFO"],
+        "GRAY": ["\033[90m", "INFO"],
+    }
+    BOLD = "\033[1m"
+    ENDC = "\033[0m"
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    GRAY = "\033[90m"
+    UNDERLINE = "\033[4m"
+
+
+def printlog(
+    msg: str,
+    msg_type: str = "INFO",
+    flush: bool = True,
+    file: str = None,
+    caller: str = None,
+):
+    """! General print functionality that traces back the caller.
+    @param msg (str) message to print
+    @param msg_type (str, optional) message type. Defaults to "INFO".
+    @param flush (bool, optional) sure that any output is buffered and go
+        to the destination. Defaults to True.
+    @param file (str, optional) file where the function is. Defaults to None.
+        If none it inspects the stack trace to get the name.
+    @param caller (str, optional) Caller of the function. Defaults to None.
+        If none it inspects the stack trace to get the name.
+    """
+
+    if not flush:
+        return
+
+    file = (
+        os.path.splitext(os.path.basename(inspect.stack()[1][1]))[0].upper()
+        if file is None
+        else file
+    )
+    caller = inspect.stack()[1][3].upper() if caller is None else caller
+    _str = "[{}][{}][{}]: {}".format(bcolors.LOG[msg_type][1], file, caller, msg)
+
+    print(bcolors.LOG[msg_type][0] + _str + bcolors.ENDC, flush=True)
+
 
 class Camera:
     def __init__(
@@ -40,7 +95,7 @@ def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file:
     # Reads de cameras configurations file.
     vision_ports = read_cams_ports(CONF_PATH=ports_file)
     # Get cameras intrinsic parameters file
-    fleet_id = "NAV2" if "Nav2" in balena_app_name else bot_id
+    fleet_id = bot_id
     calibration_params_dict = read_fleet_config_file(
             read_cams_configuration(
                 params_file,
