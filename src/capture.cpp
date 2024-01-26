@@ -301,7 +301,8 @@ void Capture::rectify()
   if (map1_.empty() || map2_.empty())
   {
       RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, 
-        "[%s] Map1 or Map2 empty. Wont rectify the image. Check that calibration params are available", node_->get_name());
+        "[%s] Map1 or Map2 empty. Wont rectify the image. Check that calibration params are available", node_->get_name()
+      );
       return;
   }
   cv::remap(rect_image_, rect_image_, map1_, map2_, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
