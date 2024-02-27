@@ -5,6 +5,8 @@ import subprocess
 from typing import Dict, List, Union, Tuple
 
 from python_utils.vision_utils import printlog
+from ament_index_python.packages import get_package_share_directory
+
 
 class Camera:
     def __init__(
@@ -24,8 +26,15 @@ class Camera:
         self.video_path = video_path
 
 
-def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file: str, 
-                 balena_app_name: str, params_file_dict: dict) -> Dict[str, Union[str, int]]:
+def find_cameras(
+    running_device: str,
+    ports_file: str,
+    bot_id: str,
+    params_file: str,
+    balena_app_name: str,
+    params_file_dict: dict,
+    verbose: bool = True,
+) -> Dict[str, Union[str, int]]:
     """!
     Finds the camera numbers and ports that correspond to real cameras
     Note: (devices may be repeated)
@@ -34,7 +43,7 @@ def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file:
     # Finds and lists video devices numbers
     cams = find_video_devices()
     # Finds and lists video devices ports
-    avail_ports, cam_devices = find_usb_ports(cams)
+    avail_ports, cam_devices = find_usb_ports(cams, verbose)
     # Finds available camera format types
     cam_formats = get_camera_format()
     # Reads de cameras configurations file.
@@ -42,12 +51,12 @@ def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file:
     # Get cameras intrinsic parameters file
     fleet_id = "NAV2" if "Nav2" in balena_app_name else bot_id
     calibration_params_dict = read_fleet_config_file(
-            read_cams_configuration(
-                params_file,
-                "fleet_cams_calibration_params.yaml",
-            ),
-            fleet_id
-        )
+        read_cams_configuration(
+            params_file,
+            "fleet_cams_calibration_params.yaml",
+        ),
+        fleet_id,
+    )
 
     # print("cams:", cams, flush=True)
     # print("avail_ports:", avail_ports, flush=True)
@@ -93,15 +102,23 @@ def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file:
         if cam_label != "S" or vision_ports[running_device][cam_label] != "None"
     ]
 
-    calibration_params_dict = {cam_label: os.getenv(f"{str(cam_label).upper}_CALIBRATION_PARAMS_FILE") or params
-                           for cam_label, params in calibration_params_dict.items()}
+    calibration_params_dict = {
+        cam_label: os.getenv(f"{str(cam_label).upper}_CALIBRATION_PARAMS_FILE")
+        or params
+        for cam_label, params in calibration_params_dict.items()
+    }
 
     # Initializes camera objects
     camera_handlers = [
-        Camera(camera_label, device_number, cam_port, camera_format, 
-               os.path.join(params_file, calibration_params_dict[camera_label]) 
-               if camera_label in calibration_params_dict.keys()
-               else "")
+        Camera(
+            camera_label,
+            device_number,
+            cam_port,
+            camera_format,
+            os.path.join(params_file, calibration_params_dict[camera_label])
+            if camera_label in calibration_params_dict.keys()
+            else "",
+        )
         for device_number, camera_label, camera_format, cam_port in zip(
             video_numbers, non_stereo_labels, cams_formats, cams_ports
         )
@@ -110,12 +127,17 @@ def find_cameras(running_device: str, ports_file: str, bot_id: str, params_file:
 
     # if there is video file create a cam object for it
     for cam_label, param in params_file_dict.items():
-        if "video_path" in param["ros__parameters"].keys() and param["ros__parameters"]["video_path"]:
+        if (
+            "video_path" in param["ros__parameters"].keys()
+            and param["ros__parameters"]["video_path"]
+        ):
             camera_handlers.append(
                 Camera(
-                    label = cam_label,
-                    intrinsic_file = os.path.join(params_file, calibration_params_dict[cam_label]),
-                    video_path = param["ros__parameters"]["video_path"],
+                    label=cam_label,
+                    intrinsic_file=os.path.join(
+                        params_file, calibration_params_dict[cam_label]
+                    ),
+                    video_path=param["ros__parameters"]["video_path"],
                 )
             )
 
@@ -148,7 +170,7 @@ def find_video_devices() -> List[int]:
     return cams_list
 
 
-def find_usb_ports(cameras: List[int]) -> Tuple[List[str], List[str]]:
+def find_usb_ports(cameras: List[int], verbose: bool = True) -> Tuple[List[str], List[str]]:
 
     """!
     Finds and lists video devices ports
@@ -189,7 +211,7 @@ def find_usb_ports(cameras: List[int]) -> Tuple[List[str], List[str]]:
         elif "virtual" in path:
             avail_ports.append(cam_device)
 
-    if len(cam_devices):
+    if len(cam_devices) and verbose:
         printlog(
             "Video devices ports: " + ", ".join(str(e) for e in list(set(cam_devices))),
             msg_type="OKPURPLE",
@@ -264,6 +286,7 @@ def read_cams_ports(CONF_PATH: str) -> Dict[str, Dict[str, Union[str, int]]]:
         data_loaded = yaml.safe_load(stream)
         return data_loaded
 
+
 def read_cams_configuration(CONF_PATH: str, FILE_NAME: str) -> dict:
 
     """!
@@ -282,6 +305,7 @@ def read_cams_configuration(CONF_PATH: str, FILE_NAME: str) -> dict:
     else:
         return {}
 
+
 def read_fleet_config_file(fleet_params_file: dict, bot_id: str) -> dict:
     """!
     Reads the fleet configuration file and returns a dictionary with the current bot cam configuration
@@ -296,5 +320,47 @@ def read_fleet_config_file(fleet_params_file: dict, bot_id: str) -> dict:
     selected_dict = fleet_params_file[list(fleet_params_file.keys())[-1]]
     for current_fleet_model in fleet_params_file.keys():
         if current_fleet_model in bot_id:
-            selected_dict =  fleet_params_file[current_fleet_model]
+            selected_dict = fleet_params_file[current_fleet_model]
     return selected_dict
+
+
+if __name__ == "__main__":
+    CONF_PATH = str(
+        os.getenv(key="CONF_PATH", default=os.path.dirname(os.path.abspath(__file__)))
+    )
+    params_file_dict = yaml.load(
+        open(
+            os.path.join(
+                get_package_share_directory("vision_bringup"),
+                "params",
+                "vision_params.yaml",
+            ),
+            "r",
+        ),
+        Loader=yaml.FullLoader,
+    )
+    running_device = os.getenv(key="BOARD_VERSION", default="local")
+    ports_file = os.path.join(
+        get_package_share_directory("vision_bringup"),
+        "params",
+        "usb_cams_ports.yaml",
+    )
+    bot_id = os.getenv(key="BOT_ID", default="local")
+    params_file = os.path.join(CONF_PATH, "calibration")
+    balena_app_name = (
+        os.getenv(key="BALENA_APP_NAME")
+        if not int(os.getenv(key="LOCAL_LAUNCH", default=0))
+        else "local"
+    )
+    params_file_dict = params_file_dict
+
+    for cam in find_cameras(
+        running_device,
+        ports_file,
+        bot_id,
+        params_file,
+        balena_app_name,
+        params_file_dict,
+        verbose=False,
+    ):
+        print(f"{cam.label},{cam.port},{cam.device_id}")
