@@ -33,8 +33,6 @@ find_package(utils REQUIRED)
 
 set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS_INIT} -fPIC")
 
-ament_python_install_package(python_tools)
-
 include_directories(
   include
   # ${Boost_INCLUDE_DIRS}
