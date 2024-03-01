@@ -63,6 +63,13 @@ class Driver : public rclcpp::Node
    */
   void PauseImageCb(shared_ptr_request_id const request_header, shared_ptr_bool_request const request,
                      shared_ptr_bool_response response);
+  /**
+   * @brief callback for release/resume camera sensor
+   *        1 -> release device
+   *        0 -> resume
+   */
+  void ReleaseCamCb(shared_ptr_request_id const request_header, shared_ptr_bool_request const request,
+                     shared_ptr_bool_response response);
  private:
    /**
    * @brief ROS subscription for undistort request.
@@ -84,6 +91,10 @@ class Driver : public rclcpp::Node
    * @brief ROS Service for pausing/resuming image publishing.
    */
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr pause_img_srv_;
+  /**
+   * @brief ROS Service for releasing/resuming camera sensor.
+   */
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr release_cam_srv_;
   /**
    * @brief wrapper of cv::VideoCapture.
    */

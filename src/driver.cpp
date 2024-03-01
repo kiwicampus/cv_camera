@@ -80,6 +80,8 @@ void Driver::parameters_setup()
     name_ + "/restart", std::bind(&Driver::RestartNodeCb, this, _1, _2, _3));
   pause_img_srv_ = this->create_service<std_srvs::srv::SetBool>(
     name_ + "/pause_img_pub", std::bind(&Driver::PauseImageCb, this, _1, _2, _3));
+  release_cam_srv_ = this->create_service<std_srvs::srv::SetBool>(
+    name_ + "/release", std::bind(&Driver::ReleaseCamCb, this, _1, _2, _3));
 
   params_callback_handle_ =
     this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
@@ -387,6 +389,34 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
   }
   else
   {
+    read_tmr_->reset();
+    publish_tmr_->reset();
+    cam_status_->data = ONLINE;
+    pub_cam_status_->publish(*cam_status_);
+    response->success = true;
+    response->message = "Camera read and pub resumed";
+    return;
+  }
+}
+
+
+void Driver::ReleaseCamCb(shared_ptr_request_id const, shared_ptr_bool_request const request,
+                            shared_ptr_bool_response response)
+{
+  if (request->data)
+  {
+    read_tmr_->cancel();
+    publish_tmr_->cancel();
+    camera_->close();
+    cam_status_->data = PAUSED;
+    pub_cam_status_->publish(*cam_status_);
+    response->success = true;
+    response->message = "Camera device released";
+    return;
+  }
+  else
+  {
+    setup();
     read_tmr_->reset();
     publish_tmr_->reset();
     cam_status_->data = ONLINE;
