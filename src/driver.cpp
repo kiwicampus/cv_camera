@@ -74,6 +74,7 @@ void Driver::parameters_setup()
   rclcpp::PublisherOptionsWithAllocator<std::allocator<void>> options;
   options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
   pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", rclcpp::QoS(1).keep_all().transient_local().reliable(), options);
+  pub_cam_diagnostic_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics", 1);
 
   // Services
   restart_srv_ = this->create_service<std_srvs::srv::Trigger>(
@@ -156,6 +157,7 @@ bool Driver::setup()
   cam_status_ = std::make_shared<std_msgs::msg::UInt8>();
   cam_status_->data = ONLINE;
   pub_cam_status_->publish(*cam_status_);
+  publish_diagnostic(ONLINE);
 
   // set error image
   std::stringstream error_msg;
@@ -197,6 +199,7 @@ void Driver::proceed()
 
     cam_status_->data = DISCONNECTED;
     pub_cam_status_->publish(*cam_status_);
+    publish_diagnostic(DISCONNECTED);
 
     while (reconnection_attempts_ < video_stream_recovery_tries_)
     {
@@ -211,6 +214,7 @@ void Driver::proceed()
           reconnection_attempts_ = 0;
           cam_status_->data = ONLINE;
           pub_cam_status_->publish(*cam_status_);
+          publish_diagnostic(ONLINE);
           break;
         }
         else
@@ -223,6 +227,7 @@ void Driver::proceed()
 
           cam_status_->data = READING_ERROR;
           pub_cam_status_->publish(*cam_status_);
+          publish_diagnostic(READING_ERROR);
         }
       }
       std::stringstream error_msg;
@@ -238,6 +243,7 @@ void Driver::proceed()
       camera_->close();
       cam_status_->data = LOST;
       pub_cam_status_->publish(*cam_status_);
+      publish_diagnostic(LOST);
 
       // set error image
       std::stringstream error_msg;
@@ -383,6 +389,7 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
     publish_tmr_->cancel();
     cam_status_->data = PAUSED;
     pub_cam_status_->publish(*cam_status_);
+    publish_diagnostic(PAUSED);
     response->success = true;
     response->message = "Camera read and pub paused";
     return;
@@ -393,6 +400,7 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
     publish_tmr_->reset();
     cam_status_->data = ONLINE;
     pub_cam_status_->publish(*cam_status_);
+    publish_diagnostic(ONLINE);
     response->success = true;
     response->message = "Camera read and pub resumed";
     return;
@@ -410,6 +418,7 @@ void Driver::ReleaseCamCb(shared_ptr_request_id const, shared_ptr_bool_request c
     camera_->close();
     cam_status_->data = PAUSED;
     pub_cam_status_->publish(*cam_status_);
+    publish_diagnostic(PAUSED);
     response->success = true;
     response->message = "Camera device released";
     return;
@@ -421,10 +430,48 @@ void Driver::ReleaseCamCb(shared_ptr_request_id const, shared_ptr_bool_request c
     publish_tmr_->reset();
     cam_status_->data = ONLINE;
     pub_cam_status_->publish(*cam_status_);
+    publish_diagnostic(ONLINE);
     response->success = true;
     response->message = "Camera read and pub resumed";
     return;
   }
+}
+void Driver::publish_diagnostic(Status status)
+{
+  auto message = diagnostic_msgs::msg::DiagnosticArray();
+  message.header.stamp = this->get_clock()->now();
+  auto status_msg = diagnostic_msgs::msg::DiagnosticStatus();
+  status_msg.name = "USB Camera Status";
+  status_msg.hardware_id = "/USB" + name_;
+
+  switch (status) {
+    case ONLINE:
+        status_msg.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
+        status_msg.message = "Camera is online";
+        break;
+    case DISCONNECTED:
+        status_msg.level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+        status_msg.message = "Camera is disconnected";
+        break;
+    case LOST:
+        status_msg.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+        status_msg.message = "Camera lost";
+        break;
+    case READING_ERROR:
+        status_msg.level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+        status_msg.message = "Reading error from camera";
+        break;
+    case PAUSED:
+        status_msg.level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+        status_msg.message = "Camera is paused";
+        break;
+    default:
+        status_msg.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+        status_msg.message = "Unrecognized camera status";
+  }
+
+  message.status.push_back(status_msg);
+  pub_cam_diagnostic_->publish(message);
 }
 
 Driver::~Driver()

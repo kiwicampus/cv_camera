@@ -30,6 +30,7 @@ find_package(std_srvs REQUIRED)
 find_package(camera_info_manager REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(utils REQUIRED)
+find_package(diagnostic_msgs REQUIRED)
 
 set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS_INIT} -fPIC")
 
@@ -62,7 +63,7 @@ std_msgs
 std_srvs
 OpenCV
 utils
-
+diagnostic_msgs
 )
 ## Specify libraries to link a library or executable target against
 ament_target_dependencies(cv_camera_driver

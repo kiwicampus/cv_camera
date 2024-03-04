@@ -32,6 +32,21 @@ class Driver : public rclcpp::Node
 
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr pub_cam_status_;
 
+  rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr pub_cam_diagnostic_;
+
+  /**
+   * Status of the cameras for easier handling
+  */
+  enum Status
+  {
+      UNRECOGNIZED = 0,
+      ONLINE = 1,
+      DISCONNECTED = 2,
+      LOST = 3,
+      READING_ERROR = 4,
+      PAUSED = 5
+  };
+
   /**
    * @brief Setup camera device and ROS parameters.
    *
@@ -51,6 +66,10 @@ class Driver : public rclcpp::Node
    * @brief Retrieve, publish and sleep
   */
   void proceed();
+  /**
+   * @brief Publish image and camera info.
+  */
+  void publish_diagnostic(Status status);
   /**
    * @brief Callback for restart node. Run setup() again.
   */
@@ -229,19 +248,6 @@ class Driver : public rclcpp::Node
    * @brief Camera cv_cap_prop_auto_exposure.
    */
   float cv_cap_prop_auto_exposure_;
-
-  /**
-   * Status of the cameras for easier handling
-  */
-  enum Status
-  {
-      UNRECOGNIZED = 0,
-      ONLINE = 1,
-      DISCONNECTED = 2,
-      LOST = 3,
-      READING_ERROR = 4,
-      PAUSED = 5
-  };
 
   std::map<int, std::string> status_map_ = {
       {0, "UNRECOGNIZED"}, {1, "ONLINE"}, {2, "RECONNECTING"}, {3, "LOST"}, {4, "READING_ERROR"}, {5, "PAUSED"}
