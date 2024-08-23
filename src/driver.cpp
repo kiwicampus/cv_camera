@@ -366,6 +366,21 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         roi_exposure_ = parameter.as_bool();
         setup();
       }
+      else if (name == "bypass_pub_pause")
+      {
+        bypass_pub_pause_ = parameter.as_bool();
+        if (cam_status_->data == PAUSED)
+        {
+          read_tmr_->reset();
+          publish_tmr_->reset();
+          cam_status_->data = ONLINE;
+          pub_cam_status_->publish(*cam_status_);
+          publish_diagnostic(ONLINE);
+          response->success = true;
+          response->message = "Camera read and pub resumed";
+          return;
+        }
+      }
     }
   }
     return result;
@@ -395,7 +410,7 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
     response->message = "Camera read and pub paused";
     return;
   }
-  else if (cam_status_->data != ONLINE)
+  else if (cam_status_->data == PAUSED)
   {
     read_tmr_->reset();
     publish_tmr_->reset();
