@@ -376,8 +376,6 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
           cam_status_->data = ONLINE;
           pub_cam_status_->publish(*cam_status_);
           publish_diagnostic(ONLINE);
-          response->success = true;
-          response->message = "Camera read and pub resumed";
         }
       }
     }
