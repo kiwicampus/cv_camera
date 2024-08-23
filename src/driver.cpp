@@ -42,6 +42,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter(roi_exposure_, "roi_exposure", false);
   param_manager_.addParameter(rectify_, "rectify", false);
   param_manager_.addParameter(always_rectify_, "always_rectify", false);
+  param_manager_.addParameter(bypass_pub_pause_, "bypass_pub_pause", false);
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
@@ -383,7 +384,7 @@ void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_reque
 void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request const request,
                             shared_ptr_bool_response response)
 {
-  if (request->data)
+  if (request->data && !bypass_pub_pause_)
   {
     read_tmr_->cancel();
     publish_tmr_->cancel();
@@ -394,7 +395,7 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
     response->message = "Camera read and pub paused";
     return;
   }
-  else
+  else if (cam_status_->data != ONLINE)
   {
     read_tmr_->reset();
     publish_tmr_->reset();

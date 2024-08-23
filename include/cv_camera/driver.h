@@ -178,6 +178,10 @@ class Driver : public rclcpp::Node
   */
   bool always_rectify_;
   /**
+   * @brief Bypass the service that stops the image publishing
+  */
+  bool bypass_pub_pause_;
+  /**
    * @brief Video path
   */
   std::string video_path_;
