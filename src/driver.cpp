@@ -378,7 +378,6 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
           publish_diagnostic(ONLINE);
           response->success = true;
           response->message = "Camera read and pub resumed";
-          return;
         }
       }
     }
