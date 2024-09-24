@@ -369,7 +369,7 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       else if (name == "always_publish")
       {
         always_publish_ = parameter.as_bool();
-        if (cam_status_->data == PAUSED)
+        if (cam_status_->data == PAUSED && always_publish_)
         {
           read_tmr_->reset();
           publish_tmr_->reset();
