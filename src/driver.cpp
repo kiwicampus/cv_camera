@@ -42,6 +42,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter(roi_exposure_, "roi_exposure", false);
   param_manager_.addParameter(rectify_, "rectify", false);
   param_manager_.addParameter(always_rectify_, "always_rectify", false);
+  param_manager_.addParameter(always_publish_, "always_publish", false);
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
@@ -365,6 +366,18 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         roi_exposure_ = parameter.as_bool();
         setup();
       }
+      else if (name == "always_publish")
+      {
+        always_publish_ = parameter.as_bool();
+        if (cam_status_->data == PAUSED)
+        {
+          read_tmr_->reset();
+          publish_tmr_->reset();
+          cam_status_->data = ONLINE;
+          pub_cam_status_->publish(*cam_status_);
+          publish_diagnostic(ONLINE);
+        }
+      }
     }
   }
     return result;
@@ -383,7 +396,7 @@ void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_reque
 void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request const request,
                             shared_ptr_bool_response response)
 {
-  if (request->data)
+  if (request->data && !always_publish_)
   {
     read_tmr_->cancel();
     publish_tmr_->cancel();
@@ -394,7 +407,7 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
     response->message = "Camera read and pub paused";
     return;
   }
-  else
+  else if (cam_status_->data == PAUSED)
   {
     read_tmr_->reset();
     publish_tmr_->reset();
