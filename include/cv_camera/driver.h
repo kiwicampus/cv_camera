@@ -180,7 +180,7 @@ class Driver : public rclcpp::Node
   /**
    * @brief Bypass the service that stops the image publishing
   */
-  bool bypass_pub_pause_;
+  bool always_publish_;
   /**
    * @brief Video path
   */
