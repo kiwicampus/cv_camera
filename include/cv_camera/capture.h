@@ -184,10 +184,7 @@ public:
    *
    * @return message pointer.
    */
-  inline const sensor_msgs::msg::Image::SharedPtr getImageMsgPtr() const
-  {
-    return bridge_.toImageMsg();
-  }
+  sensor_msgs::msg::Image::SharedPtr getImageMsgPtr();
 
   /**
    * @brief try capture image width

@@ -337,6 +337,21 @@ bool Capture::is_opened()
   return cap_.isOpened();
 }
 
+sensor_msgs::msg::Image::SharedPtr Capture::getImageMsgPtr()
+{
+  sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
+  msg->header.stamp = timestamp_;
+  msg->header.frame_id = frame_id_;
+  msg->height = bridge_.image.rows;
+  msg->width = bridge_.image.cols;
+  msg->encoding = mat_type2encoding(bridge_.image.type());
+  msg->is_bigendian = false;
+  msg->step = static_cast<sensor_msgs::msg::Image::_step_type>(bridge_.image.step);
+  msg->data.assign(bridge_.image.datastart, bridge_.image.dataend);
+
+  return msg;
+}
+
 
 bool Capture::setPropertyFromParam(int property_id, const std::string &param_name)
 {

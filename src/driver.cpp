@@ -398,15 +398,28 @@ void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_reque
 void Driver::GrabFrameCb(shared_ptr_request_id const, shared_ptr_grab_frame_request const,
                           shared_ptr_grab_frame_response response)
 {
-  RCLCPP_INFO(get_logger(), "[%s] Getting frame...", name_.c_str());
+  // The sensor has a buffer so we need to grab several times to get the current image.
+  for (int i = 0; i <= 5; i++)
+  {
+    if (!camera_->grab())
+    {
+      response->success = false;
+      response->message = "Failed to grab frame from camera.";
+      return;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
   if (!camera_->capture(flip_))
   {
     response->success = false;
     response->message = "Failed to capture frame from camera.";
+    return;
   }
   response->frame = *camera_->getImageMsgPtr();
   response->success = true;
   response->message = "Successfully got frame!";
+  RCLCPP_INFO(get_logger(), "[%s] Sent requested frame...", name_.c_str());
+  return;
 }
 
 void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request const request,
