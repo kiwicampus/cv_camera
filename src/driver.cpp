@@ -84,6 +84,8 @@ void Driver::parameters_setup()
     name_ + "/pause_img_pub", std::bind(&Driver::PauseImageCb, this, _1, _2, _3));
   release_cam_srv_ = this->create_service<std_srvs::srv::SetBool>(
     name_ + "/release", std::bind(&Driver::ReleaseCamCb, this, _1, _2, _3));
+  grab_frame_srv_ = this->create_service<usr_srvs::srv::GrabFrame>(
+    name_ + "/grab_frame", std::bind(&Driver::GrabFrameCb, this, _1, _2, _3));
 
   params_callback_handle_ =
     this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
@@ -391,6 +393,20 @@ void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_reque
   setup();
   response->success = true;
   response->message = "Camera setup will be restarted";
+}
+
+void Driver::GrabFrameCb(shared_ptr_request_id const, shared_ptr_grab_frame_request const,
+                          shared_ptr_grab_frame_response response)
+{
+  RCLCPP_INFO(get_logger(), "[%s] Getting frame...", name_.c_str());
+  if (!camera_->capture(flip_))
+  {
+    response->success = false;
+    response->message = "Failed to capture frame from camera.";
+  }
+  response->frame = *camera_->getImageMsgPtr();
+  response->success = true;
+  response->message = "Successfully got frame!";
 }
 
 void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request const request,

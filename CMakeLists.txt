@@ -27,6 +27,7 @@ find_package(image_transport REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(usr_srvs REQUIRED)
 find_package(camera_info_manager REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(utils REQUIRED)
@@ -61,6 +62,7 @@ cv_bridge
 camera_info_manager
 std_msgs
 std_srvs
+usr_srvs
 OpenCV
 utils
 diagnostic_msgs
