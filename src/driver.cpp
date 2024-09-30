@@ -84,7 +84,7 @@ void Driver::parameters_setup()
     name_ + "/pause_img_pub", std::bind(&Driver::PauseImageCb, this, _1, _2, _3));
   release_cam_srv_ = this->create_service<std_srvs::srv::SetBool>(
     name_ + "/release", std::bind(&Driver::ReleaseCamCb, this, _1, _2, _3));
-  grab_frame_srv_ = this->create_service<usr_srvs::srv::GrabFrame>(
+  grab_frame_srv_ = this->create_service<cv_camera::srv::GrabFrame>(
     name_ + "/grab_frame", std::bind(&Driver::GrabFrameCb, this, _1, _2, _3));
 
   params_callback_handle_ =

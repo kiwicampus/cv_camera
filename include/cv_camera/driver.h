@@ -15,8 +15,8 @@ namespace cv_camera
   typedef std::shared_ptr<std_srvs::srv::SetBool::Request> shared_ptr_bool_request;
   typedef std::shared_ptr<std_srvs::srv::SetBool::Response> shared_ptr_bool_response;
 
-  typedef std::shared_ptr<usr_srvs::srv::GrabFrame::Request> shared_ptr_grab_frame_request;
-  typedef std::shared_ptr<usr_srvs::srv::GrabFrame::Response> shared_ptr_grab_frame_response;
+  typedef std::shared_ptr<cv_camera::srv::GrabFrame::Request> shared_ptr_grab_frame_request;
+  typedef std::shared_ptr<cv_camera::srv::GrabFrame::Response> shared_ptr_grab_frame_response;
 
 /**
  * @brief ROS cv camera driver.
@@ -126,7 +126,7 @@ class Driver : public rclcpp::Node
   /**
    * @brief ROS Service for grabbing current frame.
    */
-  rclcpp::Service<usr_srvs::srv::GrabFrame>::SharedPtr grab_frame_srv_;
+  rclcpp::Service<cv_camera::srv::GrabFrame>::SharedPtr grab_frame_srv_;
   /**
    * @brief wrapper of cv::VideoCapture.
    */
