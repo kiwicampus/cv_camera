@@ -1,0 +1,11 @@
+# Request
+# None
+# Response
+# success (bool): True if the service responded as expected with all requested images.
+# message (string): Message to report
+# frame (sensor_msgs/Image): Current frame of the camera
+
+---
+sensor_msgs/Image frame
+bool success
+string message

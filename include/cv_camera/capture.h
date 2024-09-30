@@ -17,6 +17,7 @@
 #include "std_msgs/msg/bool.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "std_srvs/srv/set_bool.hpp"
+#include "cv_camera/srv/grab_frame.hpp"
 
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "diagnostic_msgs/msg/diagnostic_status.hpp"
@@ -183,10 +184,7 @@ public:
    *
    * @return message pointer.
    */
-  inline const sensor_msgs::msg::Image::SharedPtr getImageMsgPtr() const
-  {
-    return bridge_.toImageMsg();
-  }
+  sensor_msgs::msg::Image::SharedPtr getImageMsgPtr();
 
   /**
    * @brief try capture image width

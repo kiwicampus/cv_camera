@@ -17,7 +17,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-
+find_package(rosidl_default_generators REQUIRED)
 
 find_package(OpenCV 4 REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -39,9 +39,28 @@ include_directories(
   # ${Boost_INCLUDE_DIRS}
   )
 
+# Generate interfaces
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/GrabFrame.srv"
+  DEPENDENCIES sensor_msgs
+)
+
 ## Declare a cpp library
 add_library(cv_camera_driver SHARED src/capture.cpp src/driver.cpp )
 
+target_link_libraries(cv_camera_driver
+  ${OpenCV_LIBS}
+)
+
+# Use the new approach to link against the generated interfaces
+rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
+target_link_libraries(cv_camera_driver "${cpp_typesupport_target}")
+
+target_include_directories(cv_camera_driver PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${OpenCV_INCLUDE_DIRS}
+)
 
 ## Declare a cpp executable
 add_executable(cv_camera_node src/cv_camera_node.cpp)
@@ -71,7 +90,7 @@ ament_target_dependencies(cv_camera_driver
 )
 
 rclcpp_components_register_nodes(cv_camera_driver "cv_camera::Driver")
-set(node_plugins "${node_plugins}cv_camera::Driver;$<TARGET_FILE:driver>\n")
+set(node_plugins "${node_plugins}cv_camera::Driver;$<TARGET_FILE:cv_camera_driver>\n")
 
 ament_target_dependencies(cv_camera_node
         "rclcpp"
@@ -111,10 +130,7 @@ install(TARGETS cv_camera_driver
 
 install(
   TARGETS cv_camera_node
-  ARCHIVE DESTINATION lib/${PROJECT_NAME}
-  LIBRARY DESTINATION lib/${PROJECT_NAME}
-  RUNTIME DESTINATION lib/${PROJECT_NAME}
-  INCLUDES DESTINATION include
+  DESTINATION lib/${PROJECT_NAME}
   )
 
 install(DIRECTORY include/${PROJECT_NAME}/
