@@ -71,6 +71,10 @@ class Driver : public rclcpp::Node
   */
   void proceed();
   /**
+   * @brief Attempt to reconnect to the camera
+  */
+  void attempt_reconnection();
+  /**
    * @brief Publish image and camera info.
   */
   void publish_diagnostic(Status status);
@@ -193,6 +197,10 @@ class Driver : public rclcpp::Node
    * @brief Bypass the service that stops the image publishing
   */
   bool always_publish_;
+  /**
+   * @brief Reconnection routine
+  */
+  bool reconnection_routine_;
   /**
    * @brief Video path
   */
