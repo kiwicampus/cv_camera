@@ -43,7 +43,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter(rectify_, "rectify", false);
   param_manager_.addParameter(always_rectify_, "always_rectify", false);
   param_manager_.addParameter(always_publish_, "always_publish", false);
-  param_manager_.addParameter(reconnection_routine_, "reconnection_routine", true);
+  param_manager_.addParameter(reconnection_routine_, "reconnection_routine");
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
@@ -205,7 +205,7 @@ void Driver::proceed()
     pub_cam_status_->publish(*cam_status_);
     publish_diagnostic(DISCONNECTED);
 
-    if (reconnection_routine_)attempt_reconnection();
+    if (reconnection_routine_) attempt_reconnection();
   }
   else
   {

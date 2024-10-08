@@ -22,6 +22,7 @@
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "diagnostic_msgs/msg/diagnostic_status.hpp"
 
+#include "utils/console.hpp"
 #include "utils/parameters.hpp"
 #include "utils/string_utils.hpp"
 
