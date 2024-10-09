@@ -195,17 +195,36 @@ void Driver::proceed()
   {
     read_tmr_->cancel();
 
-    // set error image
-    std::stringstream error_msg;
-    auto upper_label = str_toupper(name_.c_str());
-    error_msg << upper_label << " " << status_map_[DISCONNECTED];
-    camera_->set_error_image(error_msg.str());
+    if (reconnection_routine_) 
+    {
+      // set error image
+      std::stringstream error_msg;
+      auto upper_label = str_toupper(name_.c_str());
+      error_msg << upper_label << " " << status_map_[DISCONNECTED];
+      camera_->set_error_image(error_msg.str());
 
-    cam_status_->data = DISCONNECTED;
-    pub_cam_status_->publish(*cam_status_);
-    publish_diagnostic(DISCONNECTED);
+      cam_status_->data = DISCONNECTED;
+      pub_cam_status_->publish(*cam_status_);
+      publish_diagnostic(DISCONNECTED);
 
-    if (reconnection_routine_) attempt_reconnection();
+      attempt_reconnection();
+    }
+    else
+    {
+      RCLCPP_ERROR(get_logger(), "[%s] Camera lost", name_.c_str());
+      camera_->close();
+      cam_status_->data = LOST;
+      pub_cam_status_->publish(*cam_status_);
+      publish_diagnostic(LOST);
+
+      // set error image
+      std::stringstream error_msg;
+      auto upper_label = str_toupper(name_.c_str());
+      error_msg << upper_label << " CAMERA " << status_map_[LOST];
+      camera_->set_error_image(error_msg.str());
+
+      publish_tmr_->cancel();
+    }
   }
   else
   {
