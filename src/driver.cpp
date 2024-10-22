@@ -43,6 +43,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter(rectify_, "rectify", false);
   param_manager_.addParameter(always_rectify_, "always_rectify", false);
   param_manager_.addParameter(always_publish_, "always_publish", false);
+  param_manager_.addParameter(reconnection_routine_, "reconnection_routine");
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
@@ -194,53 +195,21 @@ void Driver::proceed()
   {
     read_tmr_->cancel();
 
-    // set error image
-    std::stringstream error_msg;
-    auto upper_label = str_toupper(name_.c_str());
-    error_msg << upper_label << " " << status_map_[DISCONNECTED];
-    camera_->set_error_image(error_msg.str());
-
-    cam_status_->data = DISCONNECTED;
-    pub_cam_status_->publish(*cam_status_);
-    publish_diagnostic(DISCONNECTED);
-
-    while (reconnection_attempts_ < video_stream_recovery_tries_)
+    if (reconnection_routine_) 
     {
-      RCLCPP_WARN(get_logger(), "[%s] Reconnecting... attempt %d/%d", name_.c_str(), reconnection_attempts_ + 1,
-                  video_stream_recovery_tries_);
-      if (camera_->open(port_))
-      {
-        if (camera_->grab() && camera_->capture(flip_))
-        {
-          read_tmr_->reset();
-          RCLCPP_WARN(get_logger(), "[%s] Reconnected", name_.c_str());
-          reconnection_attempts_ = 0;
-          cam_status_->data = ONLINE;
-          pub_cam_status_->publish(*cam_status_);
-          publish_diagnostic(ONLINE);
-          break;
-        }
-        else
-        {
-          // set error image
-          std::stringstream error_msg;
-          auto upper_label = str_toupper(name_.c_str());
-          error_msg << upper_label << " " << status_map_[READING_ERROR];
-          camera_->set_error_image(error_msg.str());
-
-          cam_status_->data = READING_ERROR;
-          pub_cam_status_->publish(*cam_status_);
-          publish_diagnostic(READING_ERROR);
-        }
-      }
+      // set error image
       std::stringstream error_msg;
       auto upper_label = str_toupper(name_.c_str());
       error_msg << upper_label << " " << status_map_[DISCONNECTED];
       camera_->set_error_image(error_msg.str());
-      reconnection_attempts_++;
-      std::this_thread::sleep_for(std::chrono::seconds(video_stream_recovery_time_));
+
+      cam_status_->data = DISCONNECTED;
+      pub_cam_status_->publish(*cam_status_);
+      publish_diagnostic(DISCONNECTED);
+
+      attempt_reconnection();
     }
-    if (reconnection_attempts_ >= video_stream_recovery_tries_)
+    else
     {
       RCLCPP_ERROR(get_logger(), "[%s] Camera lost", name_.c_str());
       camera_->close();
@@ -254,7 +223,6 @@ void Driver::proceed()
       error_msg << upper_label << " CAMERA " << status_map_[LOST];
       camera_->set_error_image(error_msg.str());
 
-      read_tmr_->cancel();
       publish_tmr_->cancel();
     }
   }
@@ -269,6 +237,63 @@ void Driver::proceed()
       if (always_rectify_ || (rectify_ && undistort_img_req_bool_))
         camera_->rectify();
     }
+  }
+}
+
+void Driver::attempt_reconnection()
+{
+  while (reconnection_attempts_ < video_stream_recovery_tries_)
+  {
+    RCLCPP_WARN(get_logger(), "[%s] Reconnecting... attempt %d/%d", name_.c_str(), reconnection_attempts_ + 1,
+                video_stream_recovery_tries_);
+    if (camera_->open(port_))
+    {
+      if (camera_->grab() && camera_->capture(flip_))
+      {
+        read_tmr_->reset();
+        RCLCPP_WARN(get_logger(), "[%s] Reconnected", name_.c_str());
+        reconnection_attempts_ = 0;
+        cam_status_->data = ONLINE;
+        pub_cam_status_->publish(*cam_status_);
+        publish_diagnostic(ONLINE);
+        return;
+      }
+      else
+      {
+        // set error image
+        std::stringstream error_msg;
+        auto upper_label = str_toupper(name_.c_str());
+        error_msg << upper_label << " " << status_map_[READING_ERROR];
+        camera_->set_error_image(error_msg.str());
+
+        cam_status_->data = READING_ERROR;
+        pub_cam_status_->publish(*cam_status_);
+        publish_diagnostic(READING_ERROR);
+      }
+    }
+    std::stringstream error_msg;
+    auto upper_label = str_toupper(name_.c_str());
+    error_msg << upper_label << " " << status_map_[DISCONNECTED];
+    camera_->set_error_image(error_msg.str());
+    reconnection_attempts_++;
+    std::this_thread::sleep_for(std::chrono::seconds(video_stream_recovery_time_));
+  }
+  if (reconnection_attempts_ >= video_stream_recovery_tries_)
+  {
+    RCLCPP_ERROR(get_logger(), "[%s] Camera lost", name_.c_str());
+    camera_->close();
+    cam_status_->data = LOST;
+    pub_cam_status_->publish(*cam_status_);
+    publish_diagnostic(LOST);
+
+    // set error image
+    std::stringstream error_msg;
+    auto upper_label = str_toupper(name_.c_str());
+    error_msg << upper_label << " CAMERA " << status_map_[LOST];
+    camera_->set_error_image(error_msg.str());
+
+    read_tmr_->cancel();
+    publish_tmr_->cancel();
   }
 }
 

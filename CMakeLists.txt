@@ -137,6 +137,13 @@ install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION include/${PROJECT_NAME}/
   )
 
+# Add these lines to install config and launch folders
+install(DIRECTORY
+  config
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 ament_export_include_directories(include)
 
 ament_package()
