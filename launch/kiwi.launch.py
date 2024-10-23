@@ -15,9 +15,9 @@ vision_bringup_path = get_package_share_directory("vision_bringup")
 cv_camera_path = get_package_share_directory("cv_camera")
 intrinsic_file = "file:///" + os.path.join(cv_camera_path, "launch", "camera_info.yaml")
 try:
-    params_path = os.path.join(vision_bringup_path,"params","vision_params.yaml")
+    params_path = os.path.join(vision_bringup_path, "params", "vision_params.yaml")
 except:
-    params_path = os.path.join(cv_camera_path, "config", "params.yaml")
+    print("Unable to load config params", flush=True)
 
 
 def generate_launch_description():
