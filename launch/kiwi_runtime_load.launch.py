@@ -28,22 +28,31 @@ except Exception:
     print("Error: No shared vision_bringup directory found.")
     exit(1)
 
-plug_cam = os.getenv("PLUG_CAM_NAME", "")
-plug_port = os.getenv("PLUG_CAM_PORT", "")
-intrinsic_file = os.path.join(
-    base_path, "configs", "calibration", os.getenv("PLUG_CAM_INTRINSIC_FILE", "")
-)
 use_composition = parse_bool2string(int(os.getenv("VISION_USE_COMPOSITION", True)))
 container_name = os.getenv("VISION_CONTAINER_NAME", "vision_kronos")
-
-if not plug_cam or not plug_port:
-    print("No camera to plug")
-    exit(1)
 
 params_path = os.path.join(base_path, "params", "vision_params.yaml")
 
 
 def generate_launch_description():
+    cam_name = LaunchConfiguration("cam_name")
+    declare_cam_name_cmd = DeclareLaunchArgument(
+        "cam_name",
+        default_value="unknown",
+        description="camera name to plug",
+    )
+    cam_port = LaunchConfiguration("cam_port")
+    declare_cam_port_cmd = DeclareLaunchArgument(
+        "cam_port",
+        default_value="unknown",
+        description="camera port to plug",
+    )
+    intrinsic_file = LaunchConfiguration("intrinsic_file")
+    declare_intrinsic_file_cmd = DeclareLaunchArgument(
+        "intrinsic_file",
+        default_value="unknown",
+        description="camera intrinsic file",
+    )
     params_file = LaunchConfiguration("params_file")
     declare_params_file_cmd = DeclareLaunchArgument(
         "params_file",
@@ -58,13 +67,15 @@ def generate_launch_description():
                 parameters=[
                     params_file,
                     {
-                        "port": plug_port,
-                        "intrinsic_file": intrinsic_file,
+                        "port": cam_port,
+                        "intrinsic_file": os.path.join(
+                            base_path, "configs", "calibration", intrinsic_file
+                        ),
                     },
                 ],
                 package="cv_camera",
                 executable="cv_camera_node",
-                name=plug_cam,
+                name=cam_name,
                 output="screen",
             )
         ],
@@ -79,13 +90,15 @@ def generate_launch_description():
                         parameters=[
                             params_file,
                             {
-                                "port": plug_port,
-                                "intrinsic_file": intrinsic_file,
+                                "port": cam_port,
+                                "intrinsic_file": os.path.join(
+                                    base_path, "configs", "calibration", intrinsic_file
+                                ),
                             },
                         ],
                         package="cv_camera",
                         plugin="cv_camera::Driver",
-                        name=plug_cam,
+                        name=cam_name,
                         extra_arguments=[{"use_intra_process_comms": True}],
                     )
                 ],
@@ -97,6 +110,9 @@ def generate_launch_description():
         [
             # Set env var to print messages to stdout immediately
             SetEnvironmentVariable("RCUTILS_LOGGING_BUFFERED_STREAM", "1"),
+            declare_cam_name_cmd,
+            declare_cam_port_cmd,
+            declare_intrinsic_file_cmd,
             declare_params_file_cmd,
             nodes_group,
             composition_group,
