@@ -1,6 +1,6 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable, GroupAction
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, LoadComposableNodes
 from launch.conditions import IfCondition, UnlessCondition
 from launch_ros.descriptions import ComposableNode
@@ -25,13 +25,11 @@ def parse_bool2string(boolean: bool) -> str:
 try:
     base_path = get_package_share_directory("vision_bringup")
 except Exception:
-    print("Error: No shared vision_bringup directory found.")
+    print("Error: No shared vision_bringup directory found. It is necessary for params and intrisic files!")
     exit(1)
 
 use_composition = parse_bool2string(int(os.getenv("VISION_USE_COMPOSITION", True)))
 container_name = os.getenv("VISION_CONTAINER_NAME", "vision_kronos")
-
-params_path = os.path.join(base_path, "params", "vision_params.yaml")
 
 
 def generate_launch_description():
@@ -56,7 +54,7 @@ def generate_launch_description():
     params_file = LaunchConfiguration("params_file")
     declare_params_file_cmd = DeclareLaunchArgument(
         "params_file",
-        default_value=params_path,
+        default_value="vision_params.yaml",
         description="path to the params file",
     )
 
@@ -65,11 +63,11 @@ def generate_launch_description():
         actions=[
             Node(
                 parameters=[
-                    params_file,
+                    PathJoinSubstitution([base_path, "params", params_file]),
                     {
                         "port": cam_port,
-                        "intrinsic_file": os.path.join(
-                            base_path, "configs", "calibration", intrinsic_file
+                        "intrinsic_file": PathJoinSubstitution(
+                            [base_path, "configs", "calibration", intrinsic_file]
                         ),
                     },
                 ],
@@ -88,11 +86,16 @@ def generate_launch_description():
                 composable_node_descriptions=[
                     ComposableNode(
                         parameters=[
-                            params_file,
+                            PathJoinSubstitution([base_path, "params", params_file]),
                             {
                                 "port": cam_port,
-                                "intrinsic_file": os.path.join(
-                                    base_path, "configs", "calibration", intrinsic_file
+                                "intrinsic_file": PathJoinSubstitution(
+                                    [
+                                        base_path,
+                                        "configs",
+                                        "calibration",
+                                        intrinsic_file,
+                                    ]
                                 ),
                             },
                         ],
