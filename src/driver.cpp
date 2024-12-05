@@ -157,6 +157,9 @@ bool Driver::setup()
     this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / read_rate_)), std::bind(&Driver::read, this));
   publish_tmr_ =
     this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / publish_rate_)), std::bind(&Driver::proceed, this));
+  update_resolution_tmr_ =
+    this->create_wall_timer(std::chrono::milliseconds(200), std::bind(&Driver::update_resolution, this));
+  update_resolution_tmr_->cancel();
 
   cam_status_ = std::make_shared<std_msgs::msg::UInt8>();
   cam_status_->data = ONLINE;
@@ -368,14 +371,20 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
     {
       if (name == "width")
       {
+        RCLCPP_INFO(get_logger(), "Setting new width to %ld", parameter.as_int());
         width_ = parameter.as_int();
-        this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_width", (double)width_));
+        // To set the underlying OpenCV parameter we cant set a parameter inside the setParameters callback
+        // so we need to reset the timer to update the resolution
+        update_resolution_tmr_->reset();
         camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "cv_cap_prop_frame_width");
       }
       else if (name == "height")
       {
+        RCLCPP_INFO(get_logger(), "Setting new height to %ld", parameter.as_int());
         height_ = parameter.as_int();
-        this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_height", (double)height_));
+        // To set the underlying OpenCV parameter we cant set a parameter inside the setParameters callback
+        // so we need to reset the timer to update the resolution
+        update_resolution_tmr_->reset();
         camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "cv_cap_prop_frame_height");
       }
     }
@@ -418,6 +427,23 @@ void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_reque
   setup();
   response->success = true;
   response->message = "Camera setup will be restarted";
+}
+
+void Driver::update_resolution()
+{
+  update_resolution_tmr_->cancel();
+  if (width_ != camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH))
+  {
+    this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_width", (double)width_));
+  }
+  else if (height_ != camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT))
+  {
+    this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_height", (double)height_));
+  }
+  else
+  {
+    RCLCPP_WARN(get_logger(), "Resolution already set");
+  }
 }
 
 void Driver::GrabFrameCb(shared_ptr_request_id const, shared_ptr_grab_frame_request const,
