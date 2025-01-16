@@ -83,6 +83,11 @@ class Driver : public rclcpp::Node
   */
   void RestartNodeCb(shared_ptr_request_id const request_header, shared_ptr_trigger_request const request,
                      shared_ptr_trigger_response response);
+
+  /**
+   * @brief Update resolution of the camera when parameter is updated in runtime
+  */
+  void update_resolution();
   /**
    * @brief callback for pause/resume image publishing
    *        1 -> pause
@@ -115,6 +120,10 @@ class Driver : public rclcpp::Node
    * @brief ROS private timer for publishing images.
    */
   rclcpp::TimerBase::SharedPtr publish_tmr_;
+  /**
+   * @brief ROS private timer for updating resolution.
+   */
+  rclcpp::TimerBase::SharedPtr update_resolution_tmr_;
   /**
    * @brief ROS Service for triggering re setup of the node.
    */
