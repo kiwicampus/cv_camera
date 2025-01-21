@@ -234,6 +234,8 @@ bool Capture::capture(bool flip)
   // Fill the cam info message.
   info_.header.stamp = timestamp_;
   info_.header.frame_id = frame_id_;
+  info_.width = bridge_.image.cols;
+  info_.height = bridge_.image.rows;
 
   m_pub_camera_info_ptr->publish(info_);
 

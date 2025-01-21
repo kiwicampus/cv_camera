@@ -219,10 +219,6 @@ class Driver : public rclcpp::Node
   */
   std::string cam_info_topic_;
   /**
-   * @brief Camera info period
-  */
-  int cam_info_period_;
-  /**
    * @brief Camera intrinsic parameters file
   */
   std::string intrinsic_file_;

@@ -37,7 +37,6 @@ void Driver::parameters_setup()
   param_manager_.addParameter(device_id_, "device_id", -1);
   param_manager_.addParameter(publish_rate_, "publish_rate", 15.0f);
   param_manager_.addParameter(read_rate_, "read_rate", 15.0f);
-  param_manager_.addParameter(cam_info_period_, "cam_info_period", 5);
   param_manager_.addParameter(flip_, "flip", false);
   param_manager_.addParameter(roi_exposure_, "roi_exposure", false);
   param_manager_.addParameter(rectify_, "rectify", false);
