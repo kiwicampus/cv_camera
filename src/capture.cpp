@@ -68,26 +68,7 @@ void Capture::loadCameraInfo()
       return;
   }
 
-  cv::Mat K = cv::Mat(3, 3, CV_64F, info_.k.data());
-  cv::Mat R = cv::Mat(3, 3, CV_64F, info_.r.data());
-  cv::Mat P = cv::Mat(3, 4, CV_64F, info_.p.data());
-
-  // select depending on distortion model
-  if (info_.distortion_model == "plumb_bob")
-  {
-      cv::Mat D = cv::Mat(1, 5, CV_64F, info_.d.data());
-      cv::initUndistortRectifyMap(K, D, R, P, cv::Size(info_.width, info_.height), CV_16SC2, map1_, map2_);
-  }
-  else if (info_.distortion_model == "equidistant" || info_.distortion_model == "fisheye")
-  {
-      cv::Mat D = cv::Mat(1, 4, CV_64F, info_.d.data());
-      cv::fisheye::initUndistortRectifyMap(K, D, R, P, cv::Size(info_.width, info_.height), CV_16SC2, map1_, map2_);
-  }
-  else
-  {
-      RCLCPP_ERROR(node_->get_logger(), "[%s] Unsupported distortion model: %s", node_->get_name(), info_.distortion_model.c_str());
-      return;
-  }
+  initUndistortRectifyMap();
 
   rescale_camera_info_ = false;
   node_->get_parameter_or("rescale_camera_info", rescale_camera_info_, rescale_camera_info_);
@@ -114,8 +95,42 @@ void Capture::loadCameraInfo()
   }
 }
 
+void Capture::initUndistortRectifyMap()
+{
+
+  cv::Mat K = cv::Mat(3, 3, CV_64F, info_.k.data());
+  cv::Mat R = cv::Mat(3, 3, CV_64F, info_.r.data());
+  cv::Mat P = cv::Mat(3, 4, CV_64F, info_.p.data());
+
+  // select depending on distortion model
+  if (info_.distortion_model == "plumb_bob")
+  {
+      cv::Mat D = cv::Mat(1, 5, CV_64F, info_.d.data());
+      cv::initUndistortRectifyMap(K, D, R, P, cv::Size(info_.width, info_.height), CV_16SC2, map1_, map2_);
+  }
+  else if (info_.distortion_model == "equidistant" || info_.distortion_model == "fisheye")
+  {
+      cv::Mat D = cv::Mat(1, 4, CV_64F, info_.d.data());
+      cv::fisheye::initUndistortRectifyMap(K, D, R, P, cv::Size(info_.width, info_.height), CV_16SC2, map1_, map2_);
+  }
+  else
+  {
+      RCLCPP_ERROR(node_->get_logger(), "[%s] Unsupported distortion model: %s", node_->get_name(), info_.distortion_model.c_str());
+      return;
+  }
+}
+
 void Capture::rescaleCameraInfo(uint width, uint height)
 {
+  if (info_.width == width && info_.height == height)
+  {
+    RCLCPP_INFO(node_->get_logger(), "[%s] No rescaling needed", node_->get_name());
+    return;
+  }
+
+  RCLCPP_WARN(node_->get_logger(), "[%s] Rescaling camera parameters from %dx%d to %dx%d", 
+              node_->get_name(), info_.width, info_.height, width, height);
+
   double width_coeff = static_cast<double>(width) / info_.width;
   double height_coeff = static_cast<double>(height) / info_.height;
   info_.width = width;
@@ -131,6 +146,8 @@ void Capture::rescaleCameraInfo(uint width, uint height)
   info_.p[2] *= width_coeff;
   info_.p[5] *= height_coeff;
   info_.p[6] *= height_coeff;
+
+  initUndistortRectifyMap();
 }
 
 bool Capture::open(int32_t device_id)
@@ -234,8 +251,6 @@ bool Capture::capture(bool flip)
   // Fill the cam info message.
   info_.header.stamp = timestamp_;
   info_.header.frame_id = frame_id_;
-  info_.width = bridge_.image.cols;
-  info_.height = bridge_.image.rows;
 
   m_pub_camera_info_ptr->publish(info_);
 

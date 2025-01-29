@@ -252,6 +252,10 @@ class Driver : public rclcpp::Node
    */
   int height_;
   /**
+   * @brief Camera aspect ratio.
+   */
+  float aspect_ratio_;
+  /**
    * @brief Camera cv_cap_prop_brightness.
    */
   float cv_cap_prop_brightness_;

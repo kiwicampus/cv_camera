@@ -222,12 +222,17 @@ public:
    */
   void set_error_image(const std::string& error_msg, int width = 640, int height = 360);
 
-private:
   /**
    * @brief rescale camera calibration to another resolution
    */
   void rescaleCameraInfo(uint width, uint height);
 
+  /**
+   * @brief initialize undistort rectify map
+   */
+  void initUndistortRectifyMap();
+
+private:
   /**
    * @brief Select appropiate encoding for the image
    */
