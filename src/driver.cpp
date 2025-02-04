@@ -172,6 +172,7 @@ bool Driver::setup()
   camera_->set_error_image(error_msg.str());
 
   // Log camera starting configuration
+  aspect_ratio_ = camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH) / camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT);
   RCLCPP_INFO(get_logger(), "(GOT VIDEO) %s: DEVICE: %d - SIZE: %dX%d - RATE: %d/%d - PROP_MODE: %f - EXPOSURE: %d",
               name_.c_str(), device_id_, int(camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH)),
               int(camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT)), int(read_rate_), int(camera_->getProperty(cv::CAP_PROP_FPS)),
@@ -370,22 +371,20 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
     {
       if (name == "width")
       {
-        RCLCPP_INFO(get_logger(), "Setting new width to %ld", parameter.as_int());
         width_ = parameter.as_int();
-        if (width_ == 1920) height_ = 1080;
-        if (width_ == 1280) height_ = 720;
-        if (width_ == 640) height_ = 360;
+        // update height to maintain aspect ratio
+        height_ = int(width_ / aspect_ratio_);
+        RCLCPP_INFO(get_logger(), "Setting new width to %ld and height to %d to maintain aspect ratio", parameter.as_int(), height_);
         // To set the underlying OpenCV parameter we cant set a parameter inside the setParameters callback
         // so we need to reset the timer to update the resolution
         update_resolution_tmr_->reset();
       }
       else if (name == "height")
       {
-        RCLCPP_INFO(get_logger(), "Setting new height to %ld", parameter.as_int());
         height_ = parameter.as_int();
-        if (height_ == 1080) width_ = 1920;
-        if (height_ == 720) width_ = 1280;
-        if (height_ == 360 || height_ == 480) width_ = 640;
+        // update width to maintain aspect ratio
+        width_ = int(height_ * aspect_ratio_);
+        RCLCPP_INFO(get_logger(), "Setting new height to %ld and width to %d to maintain aspect ratio", parameter.as_int(), width_);
         // To set the underlying OpenCV parameter we cant set a parameter inside the setParameters callback
         // so we need to reset the timer to update the resolution
         update_resolution_tmr_->reset();
@@ -438,10 +437,12 @@ void Driver::update_resolution()
   if (width_ != camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH))
   {
     this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_width", (double)width_));
+    camera_->rescaleCameraInfo(width_, height_);
   }
   if (height_ != camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT))
   {
     this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_height", (double)height_));
+    camera_->rescaleCameraInfo(width_, height_);
   }
 }
 
