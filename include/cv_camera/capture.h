@@ -136,10 +136,11 @@ public:
   /**
    * @brief capture an image and store.
    * to publish the captured image, call publish();
-   * @param flip flip the image around vertical axis if true
+   * @param flip_vertical flip the image around vertical axis if true
+   * @param flip_horizontal flip the image around horizontal axis if true
    * @return true if success to capture, false if not captured.
    */
-  bool capture(bool flip);
+  bool capture(bool flip_vertical, bool flip_horizontal);
 
   /**
    * @brief pull an image from the camera but dont decode it

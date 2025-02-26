@@ -37,7 +37,8 @@ void Driver::parameters_setup()
   param_manager_.addParameter(device_id_, "device_id", -1);
   param_manager_.addParameter(publish_rate_, "publish_rate", 15.0f);
   param_manager_.addParameter(read_rate_, "read_rate", 15.0f);
-  param_manager_.addParameter(flip_, "flip", false);
+  param_manager_.addParameter(flip_vertical_, "flip_vertical", false);
+  param_manager_.addParameter(flip_horizontal_, "flip_horizontal", false);
   param_manager_.addParameter(roi_exposure_, "roi_exposure", false);
   param_manager_.addParameter(rectify_, "rectify", false);
   param_manager_.addParameter(always_rectify_, "always_rectify", false);
@@ -192,7 +193,7 @@ void Driver::read()
 
 void Driver::proceed()
 {
-  if (video_path_ != "") camera_->capture(flip_);
+  if (video_path_ != "") camera_->capture(flip_vertical_, flip_horizontal_);
 
   else if (!camera_->is_opened())
   {
@@ -231,7 +232,7 @@ void Driver::proceed()
   }
   else
   {
-    if (!camera_->capture(flip_))
+    if (!camera_->capture(flip_vertical_, flip_horizontal_))
     {
       RCLCPP_WARN(get_logger(), "[%s] Couldn't capture frame", name_.c_str());
     }
@@ -251,7 +252,7 @@ void Driver::attempt_reconnection()
                 video_stream_recovery_tries_);
     if (camera_->open(port_))
     {
-      if (camera_->grab() && camera_->capture(flip_))
+      if (camera_->grab() && camera_->capture(flip_vertical_, flip_horizontal_))
       {
         read_tmr_->reset();
         RCLCPP_WARN(get_logger(), "[%s] Reconnected", name_.c_str());
@@ -460,7 +461,7 @@ void Driver::GrabFrameCb(shared_ptr_request_id const, shared_ptr_grab_frame_requ
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
-  if (!camera_->capture(flip_))
+  if (!camera_->capture(flip_vertical_, flip_horizontal_))
   {
     response->success = false;
     response->message = "Failed to capture frame from camera.";

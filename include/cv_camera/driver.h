@@ -185,7 +185,11 @@ class Driver : public rclcpp::Node
   /**
    * @brief Enables/disables image flipping vertically
   */
-  bool flip_;
+  bool flip_vertical_;
+  /**
+   * @brief Enables/disables image flipping horizontally
+  */
+  bool flip_horizontal_;
   /**
    * @brief Enables/disables our custom made exposure control depending on the ROI
   */

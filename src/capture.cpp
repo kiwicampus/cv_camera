@@ -217,10 +217,11 @@ bool Capture::grab()
   return cap_.grab();
 }
 
-bool Capture::capture(bool flip)
+bool Capture::capture(bool flip_vertical, bool flip_horizontal)
 {
   if (!cap_.retrieve(bridge_.image)) return false;
-  if (flip) cv::flip(bridge_.image, bridge_.image, -1);
+  if (flip_vertical) cv::flip(bridge_.image, bridge_.image, 0);
+  if (flip_horizontal) cv::flip(bridge_.image, bridge_.image, 1);
 
   // Our custom made exposure set depending on ROI
   if (roi_exposure_) custom_roi_exposure(bridge_.image);
