@@ -128,6 +128,8 @@ void Capture::rescaleCameraInfo(uint width, uint height)
     return;
   }
 
+  if (rescaleFromFile(width, height)) return;
+
   RCLCPP_WARN(node_->get_logger(), "[%s] Rescaling camera parameters from %dx%d to %dx%d", 
               node_->get_name(), info_.width, info_.height, width, height);
 
@@ -148,6 +150,31 @@ void Capture::rescaleCameraInfo(uint width, uint height)
   info_.p[6] *= height_coeff;
 
   initUndistortRectifyMap();
+}
+
+bool Capture::rescaleFromFile(uint width, uint height)
+{
+  std::string hd_url;
+  if (!node_->get_parameter("hd_intrinsic_file", hd_url) && hd_url == "") return false;
+
+  hd_url = "file://" + hd_url;
+
+  if (!info_manager_.validateURL(hd_url)) return false;
+
+  info_manager_.loadCameraInfo(hd_url);
+  sensor_msgs::msg::CameraInfo hd_info = info_manager_.getCameraInfo();
+
+  // If width and height are the same, we can use the hd_info instead of rescaling
+  if (hd_info.width != width || hd_info.height != height) return false;
+
+  RCLCPP_INFO(node_->get_logger(), "[%s] Changing camera parameters from %dx%d to %dx%d as HD parameters were found", 
+              node_->get_name(), hd_info.width, hd_info.height, width, height);
+
+  info_ = hd_info;
+
+  initUndistortRectifyMap();
+
+  return true;
 }
 
 bool Capture::open(int32_t device_id)

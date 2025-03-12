@@ -228,6 +228,11 @@ class Driver : public rclcpp::Node
   std::string intrinsic_file_;
 
   /**
+   * @brief Camera intrinsic parameters file for HD configuration
+  */
+  std::string hd_intrinsic_file_;
+
+  /**
    * @brief Fourcc vector to be used in cv::VideoCapture::set
    */
   std::vector<std::string> fourcc_;

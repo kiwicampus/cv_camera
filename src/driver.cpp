@@ -45,6 +45,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter(always_publish_, "always_publish", false);
   param_manager_.addParameter(reconnection_routine_, "reconnection_routine");
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
+  param_manager_.addParameter<std::string>(hd_intrinsic_file_, "hd_intrinsic_file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
@@ -393,7 +394,7 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
     }
     else if (type == rclcpp::ParameterType::PARAMETER_STRING)
     {
-      if (name == "intrinsic_file")
+      if (name == "intrinsic_file" || name == "hd_intrinsic_file")
       {
         camera_->loadCameraInfo();
       }
