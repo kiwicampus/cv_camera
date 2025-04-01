@@ -174,6 +174,8 @@ bool Driver::setup()
 
   // Log camera starting configuration
   aspect_ratio_ = camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH) / camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT);
+  // Update resolution to make sure it's set correctly
+  update_resolution();
   RCLCPP_INFO(get_logger(), "(GOT VIDEO) %s: DEVICE: %d - SIZE: %dX%d - RATE: %d/%d - PROP_MODE: %f - EXPOSURE: %d",
               name_.c_str(), device_id_, int(camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH)),
               int(camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT)), int(read_rate_), int(camera_->getProperty(cv::CAP_PROP_FPS)),
@@ -435,12 +437,12 @@ void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_reque
 void Driver::update_resolution()
 {
   update_resolution_tmr_->cancel();
-  if (width_ != camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH))
+  if (width_ != camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH) || width_ != (int)camera_->getInfo().width)
   {
     this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_width", (double)width_));
     camera_->rescaleCameraInfo(width_, height_);
   }
-  if (height_ != camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT))
+  if (height_ != camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT) || height_ != (int)camera_->getInfo().height)
   {
     this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_height", (double)height_));
     camera_->rescaleCameraInfo(width_, height_);
