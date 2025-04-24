@@ -551,7 +551,8 @@ double Capture::getLaplacianVariance()
     cv::Scalar mean, stddev;
     cv::meanStdDev(laplacian, mean, stddev);
 
-    // Return variance value
-    return stddev[0] * stddev[0];
+    double variance = stddev[0] * stddev[0];
+    RCLCPP_INFO(node_->get_logger(), "[%s] Laplacian variance: %f", node_->get_name(), variance);
+    return variance;
 }
 }  // namespace cv_camera
