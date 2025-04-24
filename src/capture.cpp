@@ -530,13 +530,12 @@ bool Capture::is_empty()
 
 bool Capture::isFocused()
 {
-
     double focus_threshold = 100.0;
     node_->get_parameter_or("focus_threshold", focus_threshold, focus_threshold);
     // Calculate image focus using Laplacian variance method
     // Higher variance indicates more edges/details are in focus
     double LaplacianVariance = getLaplacianVariance();
-    
+
     // Return true if variance is above threshold (image is focused)
     return LaplacianVariance >= focus_threshold;
 }
@@ -552,7 +551,7 @@ double Capture::getLaplacianVariance()
     cv::meanStdDev(laplacian, mean, stddev);
 
     double variance = stddev[0] * stddev[0];
-    RCLCPP_INFO(node_->get_logger(), "[%s] Laplacian variance: %f", node_->get_name(), variance);
+    RCLCPP_DEBUG(node_->get_logger(), "[%s] Laplacian variance: %f", node_->get_name(), variance);
     return variance;
 }
 }  // namespace cv_camera

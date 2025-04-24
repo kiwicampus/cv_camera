@@ -230,7 +230,7 @@ class Capture
 
    private:
     /**
-     * @brief Get Laplacian variance of the image
+     * @brief Get Laplacian variance of last captured image
      * @return Laplacian variance value
      */
     double getLaplacianVariance();
