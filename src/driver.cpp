@@ -87,6 +87,9 @@ void Driver::parameters_setup()
     name_ + "/release", std::bind(&Driver::ReleaseCamCb, this, _1, _2, _3));
   grab_frame_srv_ = this->create_service<cv_camera::srv::GrabFrame>(
     name_ + "/grab_frame", std::bind(&Driver::GrabFrameCb, this, _1, _2, _3));
+  is_camera_focused_srv_ = this->create_service<std_srvs::srv::SetBool>(
+    name_ + "/is_focused", std::bind(&Driver::isCameraFocusedCb, this, _1, _2, _3));
+
 
   params_callback_handle_ =
     this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
@@ -473,6 +476,26 @@ void Driver::GrabFrameCb(shared_ptr_request_id const, shared_ptr_grab_frame_requ
   response->success = true;
   response->message = "Successfully got frame!";
   RCLCPP_INFO(get_logger(), "[%s] Sent requested frame...", name_.c_str());
+  return;
+}
+
+void Driver::isCameraFocusedCb(shared_ptr_request_id const, [[maybe_unused]] shared_ptr_bool_request const request,
+                               shared_ptr_bool_response response)
+{
+  if (!camera_)
+  {
+    response->success = false;
+    response->message = "Camera not initialized";
+    return;
+  }
+  if (camera_->is_empty())
+  {
+    response->success = false;
+    response->message = "Camera frame is empty";
+    return;
+  }
+  response->success = camera_->isFocused();
+  response->message = std::string("Camera is ") + (response->success ? "focused" : "not focused");
   return;
 }
 
