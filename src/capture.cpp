@@ -516,4 +516,43 @@ void Capture::set_error_image(const std::string& error_msg, int width, int heigh
   publish(std::move(msg_image));
 
 }
+
+
+bool Capture::is_empty()
+{
+    if (bridge_.image.empty())
+    {
+        RCLCPP_WARN_ONCE(node_->get_logger(), "[%s] Frame is empty.", node_->get_name());
+        return true;
+    }
+    return false;
+}
+
+bool Capture::isFocused()
+{
+    double focus_threshold = 100.0;
+    node_->get_parameter_or("focus_threshold", focus_threshold, focus_threshold);
+    // Calculate image focus using Laplacian variance method
+    // Higher variance indicates more edges/details are in focus
+    double LaplacianVariance = getLaplacianVariance();
+
+    // Return true if variance is above threshold (image is focused)
+    return LaplacianVariance >= focus_threshold;
+}
+
+double Capture::getLaplacianVariance()
+{
+    cv::Mat frame = bridge_.image;
+    cv::Mat gray, laplacian;
+    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);  // Convert to grayscale
+    cv::Laplacian(gray, laplacian, CV_64F);         // Apply Laplacian filter
+
+    cv::Scalar mean, stddev;
+    cv::meanStdDev(laplacian, mean, stddev);
+
+    double variance = stddev[0] * stddev[0];
+    RCLCPP_DEBUG(node_->get_logger(), "[%s] Laplacian variance: %f", node_->get_name(), variance);
+    return variance;
+}
+
 }  // namespace cv_camera

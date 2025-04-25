@@ -232,8 +232,25 @@ public:
    * @brief initialize undistort rectify map
    */
   void initUndistortRectifyMap();
+  /**
+   * @brief Check if the image is empty
+   * @return True if image is empty, false otherwise
+   */
+  bool is_empty();  
+  /**
+   * @brief Check if the image is focused
+   * @return True if image is focused, false otherwise
+   */
+  bool isFocused();
 
 private:
+  
+  /**
+  * @brief Get Laplacian variance of last captured image
+  * @return Laplacian variance value
+  */
+  double getLaplacianVariance();
+
   /**
    * @brief Select appropiate encoding for the image
    */
