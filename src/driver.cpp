@@ -49,6 +49,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
+  param_manager_.addParameter(focus_threshold_, "focus_threshold", 100.0);
 
   // Video capture parameters
   param_manager_.addParameter(width_, "width", 640);

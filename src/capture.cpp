@@ -33,17 +33,17 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
 
 void Capture::param_manager_setup() 
 {
-  node_name_ = node_->get_fully_qualified_name();
-  param_manager_ = NodeParamManager(node_);
-  param_manager_.addExternParam(focus_threshold_, std::string("/") + node_name_, "focus_threshold", 100.0);
-  param_manager_.Subscribe2ExternParams();
+  param_manager_ = NodeParamManager(node_.get());
+  param_manager_.addParameter(focus_threshold_, "focus_threshold", 100.0);
+  
   params_callback_handle_ =
-    this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
+    node_->add_on_set_parameters_callback(std::bind(&Capture::parameters_cb, this, _1));
 }
 
-rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector<rclcpp::Parameter>& parameters)
+rcl_interfaces::msg::SetParametersResult Capture::parameters_cb(const std::vector<rclcpp::Parameter>& parameters)
 {
-    auto result = param_manager_.parametersCb(parameters);
+    rcl_interfaces::msg::SetParametersResult result;
+    result = param_manager_.parametersCb(parameters);
     return result;
 }
 
@@ -550,7 +550,7 @@ bool Capture::isFocused()
     // Calculate image focus using Laplacian variance method
     // Higher variance indicates more edges/details are in focus
     double LaplacianVariance = getLaplacianVariance();
-
+    RCLCPP_ERROR(node_->get_logger(), "[%s] focus_threshold_: %f", node_->get_name(), focus_threshold_);
     // Return true if variance is above threshold (image is focused)
     return LaplacianVariance >= focus_threshold_;
 }
@@ -566,7 +566,7 @@ double Capture::getLaplacianVariance()
     cv::meanStdDev(laplacian, mean, stddev);
 
     double variance = stddev[0] * stddev[0];
-    RCLCPP_DEBUG(node_->get_logger(), "[%s] Laplacian variance: %f", node_->get_name(), variance);
+    RCLCPP_ERROR(node_->get_logger(), "[%s] Laplacian variance: %f", node_->get_name(), variance);
     return variance;
 }
 

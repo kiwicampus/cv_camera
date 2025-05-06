@@ -385,7 +385,7 @@ private:
   /**
    * @brief Parameter manager variables initialization
    */
-  void Capture::param_manager_setup();
+  void param_manager_setup();
 };
 
 } // namespace cv_camera
