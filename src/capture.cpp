@@ -10,7 +10,7 @@ namespace cv_camera
 namespace enc = sensor_msgs::image_encodings;
 
 Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name, 
-                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, uint32_t buffer_size)
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, const double focus_threshold, uint32_t buffer_size)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
@@ -20,6 +20,7 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
       roi_exposure_(roi_exposure),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
+      focus_threshold_(focus_threshold),
       capture_delay_(rclcpp::Duration(0, 0.0))
 {
     int dur = 0;
@@ -28,24 +29,8 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
     m_pub_camera_info_ptr = node->create_publisher<sensor_msgs::msg::CameraInfo>(cam_info_topic_name_, rclcpp::QoS(rclcpp::SensorDataQoS()));
     node_->get_parameter_or("capture_delay", dur, dur);
     this->capture_delay_ = rclcpp::Duration(dur, 0.0);
-    this->param_manager_setup();
 }
 
-void Capture::param_manager_setup() 
-{
-  param_manager_ = NodeParamManager(node_.get());
-  param_manager_.addParameter(focus_threshold_, "focus_threshold", 100.0);
-  
-  params_callback_handle_ =
-    node_->add_on_set_parameters_callback(std::bind(&Capture::parameters_cb, this, _1));
-}
-
-rcl_interfaces::msg::SetParametersResult Capture::parameters_cb(const std::vector<rclcpp::Parameter>& parameters)
-{
-    rcl_interfaces::msg::SetParametersResult result;
-    result = param_manager_.parametersCb(parameters);
-    return result;
-}
 
 void Capture::loadCameraInfo()
 {
@@ -534,7 +519,6 @@ void Capture::set_error_image(const std::string& error_msg, int width, int heigh
 
 }
 
-
 bool Capture::is_empty()
 {
     if (bridge_.image.empty())
@@ -549,10 +533,12 @@ bool Capture::isFocused()
 {
     // Calculate image focus using Laplacian variance method
     // Higher variance indicates more edges/details are in focus
-    double LaplacianVariance = getLaplacianVariance();
+    double laplacianVariance = getLaplacianVariance();
+    RCLCPP_ERROR(node_->get_logger(), "[%s] Laplacian variance: %f", node_->get_name(), laplacianVariance);
     RCLCPP_ERROR(node_->get_logger(), "[%s] focus_threshold_: %f", node_->get_name(), focus_threshold_);
+    
     // Return true if variance is above threshold (image is focused)
-    return LaplacianVariance >= focus_threshold_;
+    return laplacianVariance >= focus_threshold_;
 }
 
 double Capture::getLaplacianVariance()
@@ -566,7 +552,6 @@ double Capture::getLaplacianVariance()
     cv::meanStdDev(laplacian, mean, stddev);
 
     double variance = stddev[0] * stddev[0];
-    RCLCPP_ERROR(node_->get_logger(), "[%s] Laplacian variance: %f", node_->get_name(), variance);
     return variance;
 }
 

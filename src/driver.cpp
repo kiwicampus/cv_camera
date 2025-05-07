@@ -105,6 +105,7 @@ bool Driver::setup()
                             "/video_mapping" + name_ + "/image_rect",
                             frame_id_,
                             roi_exposure_,
+                            focus_threshold_,
                             PUBLISHER_BUFFER_SIZE));
 
   if (video_path_ != "")

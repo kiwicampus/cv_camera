@@ -58,6 +58,7 @@ public:
           const std::string &rect_image_topic_name,
           const std::string &frame_id,
           const bool roi_exposure,
+          const double focus_threshold,
           uint32_t buffer_size);
 
   /**
@@ -373,19 +374,6 @@ private:
    */
   rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr m_pub_camera_info_ptr;
 
-  // Parameters Handling
-  NodeParamManager param_manager_;
-  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr params_callback_handle_;
-  /**
-   * @brief Callback executed when a parameter change is detected
-   * @param parameters list of parameters changed
-   */
-  rcl_interfaces::msg::SetParametersResult parameters_cb(const std::vector<rclcpp::Parameter>& parameters);
-  
-  /**
-   * @brief Parameter manager variables initialization
-   */
-  void param_manager_setup();
 };
 
 } // namespace cv_camera
