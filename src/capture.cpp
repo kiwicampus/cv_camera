@@ -10,7 +10,7 @@ namespace cv_camera
 namespace enc = sensor_msgs::image_encodings;
 
 Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name, 
-                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, const double focus_threshold, uint32_t buffer_size)
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, uint32_t buffer_size)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
@@ -398,6 +398,11 @@ double Capture::getProperty(int property_id)
     return cap_.get(property_id);
   }
   return 0.0;
+}
+
+void Capture::setFocusThreshold(double focus_threshold)
+{
+  focus_threshold_ = focus_threshold;
 }
 
 std::string Capture::execute_command(const char* command)

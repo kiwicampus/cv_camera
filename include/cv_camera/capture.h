@@ -58,7 +58,7 @@ public:
           const std::string &rect_image_topic_name,
           const std::string &frame_id,
           const bool roi_exposure,
-          const double focus_threshold,
+          double focus_threshold,
           uint32_t buffer_size);
 
   /**
@@ -218,6 +218,12 @@ public:
    * @return value of property
    */
   double getProperty(int property_id);
+
+  /**
+   * @brief Set focus threshold
+   * @param focus_threshold focus threshold
+   */
+  void setFocusThreshold(double focus_threshold);
 
   /**
    * @brief Set black error image in case of error.

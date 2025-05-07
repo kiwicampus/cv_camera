@@ -374,6 +374,11 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_AUTO_EXPOSURE, "cv_cap_prop_auto_exposure");
       }
+      else if (name == "focus_threshold")
+      {
+        focus_threshold_ = parameter.as_double();
+        camera_->setFocusThreshold(focus_threshold_);
+      }
     }
     else if (type == rclcpp::ParameterType::PARAMETER_INTEGER)
     {
