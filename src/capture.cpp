@@ -370,6 +370,23 @@ sensor_msgs::msg::Image::SharedPtr Capture::getImageMsgPtr()
   return msg;
 }
 
+sensor_msgs::msg::Image::SharedPtr Capture::getUndistortedImageMsgPtr()
+{
+  rectify();
+
+  sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
+  msg->header.stamp = timestamp_;
+  msg->header.frame_id = frame_id_;
+  msg->height = rect_image_.rows;
+  msg->width = rect_image_.cols;
+  msg->encoding = mat_type2encoding(rect_image_.type());
+  msg->is_bigendian = false;
+  msg->step = static_cast<sensor_msgs::msg::Image::_step_type>(rect_image_.step);
+  msg->data.assign(rect_image_.datastart, rect_image_.dataend);
+
+  return msg;
+}
+
 
 bool Capture::setPropertyFromParam(int property_id, const std::string &param_name)
 {
