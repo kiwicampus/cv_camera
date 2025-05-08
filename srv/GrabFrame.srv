@@ -1,10 +1,11 @@
 # Request
-# None
+# undistorted (bool)[default: false]: If true the service will return the undistorted image.
 # Response
 # success (bool): True if the service responded as expected with all requested images.
 # message (string): Message to report
 # frame (sensor_msgs/Image): Current frame of the camera
 
+bool undistorted false
 ---
 sensor_msgs/Image frame
 bool success

@@ -449,7 +449,7 @@ void Driver::update_resolution()
   }
 }
 
-void Driver::GrabFrameCb(shared_ptr_request_id const, shared_ptr_grab_frame_request const,
+void Driver::GrabFrameCb(shared_ptr_request_id const, shared_ptr_grab_frame_request const request,
                           shared_ptr_grab_frame_response response)
 {
   // The sensor has a buffer so we need to grab several times to get the current image.
@@ -469,10 +469,17 @@ void Driver::GrabFrameCb(shared_ptr_request_id const, shared_ptr_grab_frame_requ
     response->message = "Failed to capture frame from camera.";
     return;
   }
-  response->frame = *camera_->getImageMsgPtr();
+  if (request->undistorted)
+  {
+    response->frame = *camera_->getUndistortedImageMsgPtr();
+  }
+  else
+  {
+    response->frame = *camera_->getImageMsgPtr();
+  }
   response->success = true;
   response->message = "Successfully got frame!";
-  RCLCPP_INFO(get_logger(), "[%s] Sent requested frame...", name_.c_str());
+  RCLCPP_INFO(get_logger(), "[%s] Sent requested %s frame...", name_.c_str(), request->undistorted ? "undistorted" : "distorted");
   return;
 }
 

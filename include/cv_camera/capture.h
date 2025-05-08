@@ -189,6 +189,15 @@ public:
   sensor_msgs::msg::Image::SharedPtr getImageMsgPtr();
 
   /**
+   * @brief accessor of ROS Image message.
+   *
+   * you have to call capture() before call this.
+   *
+   * @return message pointer.
+   */
+  sensor_msgs::msg::Image::SharedPtr getUndistortedImageMsgPtr();
+
+  /**
    * @brief try capture image width
    * @return true if success
    */
