@@ -539,8 +539,8 @@ bool Capture::isFocused()
     // Calculate image focus using Laplacian variance method
     // Higher variance indicates more edges/details are in focus
     double laplacianVariance = getLaplacianVariance();
-    RCLCPP_ERROR(node_->get_logger(), "[%s] Laplacian variance: %f", node_->get_name(), laplacianVariance);
-    RCLCPP_ERROR(node_->get_logger(), "[%s] focus_threshold_: %f", node_->get_name(), focus_threshold_);
+    RCLCPP_DEBUG(node_->get_logger(), "[%s] Laplacian variance: %f", node_->get_name(), laplacianVariance);
+    RCLCPP_DEBUG(node_->get_logger(), "[%s] focus_threshold_: %f", node_->get_name(), focus_threshold_);
     
     // Return true if variance is above threshold (image is focused)
     return laplacianVariance >= focus_threshold_;
