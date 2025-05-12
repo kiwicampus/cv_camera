@@ -25,7 +25,7 @@ def parse_bool2string(boolean: bool) -> str:
 try:
     base_path = get_package_share_directory("vision_bringup")
 except Exception:
-    print("Error: No shared vision_bringup directory found. It is necessary for params and intrisic files!")
+    print("Error: No shared vision_bringup directory found. It is necessary for params and intrinsic files!")
     exit(1)
 
 use_composition = parse_bool2string(int(os.getenv("VISION_USE_COMPOSITION", True)))

@@ -58,6 +58,7 @@ public:
           const std::string &rect_image_topic_name,
           const std::string &frame_id,
           const bool roi_exposure,
+          double focus_threshold,
           uint32_t buffer_size);
 
   /**
@@ -228,6 +229,12 @@ public:
   double getProperty(int property_id);
 
   /**
+   * @brief Set focus threshold
+   * @param focus_threshold focus threshold
+   */
+  void setFocusThreshold(double focus_threshold);
+
+  /**
    * @brief Set black error image in case of error.
    */
   void set_error_image(const std::string& error_msg, int width = 640, int height = 360);
@@ -241,8 +248,27 @@ public:
    * @brief initialize undistort rectify map
    */
   void initUndistortRectifyMap();
+  /**
+   * @brief Check if the image is empty
+   * @return True if image is empty, false otherwise
+   */
+  bool is_empty();  
+  /**
+   * @brief Check if the image is focused
+   * @return True if image is focused, false otherwise
+   */
+  bool isFocused();
 
 private:
+
+  // Parameters
+  double focus_threshold_;
+  /**
+  * @brief Get Laplacian variance of last captured image
+  * @return Laplacian variance value
+  */
+  double getLaplacianVariance();
+
   /**
    * @brief Select appropiate encoding for the image
    */
@@ -362,6 +388,7 @@ private:
    * @brief Final publisher for camera info messages
    */
   rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr m_pub_camera_info_ptr;
+
 };
 
 } // namespace cv_camera

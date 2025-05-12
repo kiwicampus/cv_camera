@@ -1,39 +1,41 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
-import os
 
+# Dictionary mapping camera names to their device IDs
+# The device ID is the number assigned by the OS to the camera device
+# For example, /dev/video3 would have device_id = 3
 camera_names_device_id = {
-    "left": 0,
+    "left": 3,
     # "right": 2,
     # "rear": 4,
     # "zoom": 6,
 }
-vision_bringup_path = get_package_share_directory("vision_bringup")
-cv_camera_path = get_package_share_directory("cv_camera")
-intrinsic_file = "file:///" + os.path.join(cv_camera_path, "launch", "camera_info.yaml")
-try:
-    params_path = os.path.join(vision_bringup_path, "params", "vision_params.yaml")
-except:
-    print("Unable to load config params", flush=True)
 
+vision_bringup_path = get_package_share_directory("vision_bringup")
+
+# Default paths
+default_intrinsic_file = PathJoinSubstitution([vision_bringup_path, "configs", "calibration", "intrinsic_calibration_params_2_1mm.yaml"])
+default_params_file = PathJoinSubstitution([vision_bringup_path, "params", "vision_params.yaml"])
 
 def generate_launch_description():
-
-    camera_info_url = LaunchConfiguration("camera_info_url")
+    # Declare launch arguments for camera info and params files
     declare_camera_info_url_cmd = DeclareLaunchArgument(
         "camera_info_url",
-        default_value=intrinsic_file,
-        description="path to the camera info file",
+        default_value=default_intrinsic_file,
+        description="Path to the camera info file",
     )
-    params_file = LaunchConfiguration("params_file")
     declare_params_file_cmd = DeclareLaunchArgument(
         "params_file",
-        default_value=params_path,
-        description="path to the params file",
+        default_value=default_params_file,
+        description="Path to the params file",
     )
+
+    # Use LaunchConfiguration to get the values, falling back to defaults if not provided
+    camera_info_url = LaunchConfiguration("camera_info_url")
+    params_file = LaunchConfiguration("params_file")
 
     nodes = []
     for camera_name, device_id in camera_names_device_id.items():

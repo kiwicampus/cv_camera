@@ -49,6 +49,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
+  param_manager_.addParameter(focus_threshold_, "focus_threshold", 100.0);
 
   // Video capture parameters
   param_manager_.addParameter(width_, "width", 640);
@@ -87,6 +88,9 @@ void Driver::parameters_setup()
     name_ + "/release", std::bind(&Driver::ReleaseCamCb, this, _1, _2, _3));
   grab_frame_srv_ = this->create_service<cv_camera::srv::GrabFrame>(
     name_ + "/grab_frame", std::bind(&Driver::GrabFrameCb, this, _1, _2, _3));
+  is_camera_focused_srv_ = this->create_service<std_srvs::srv::SetBool>(
+    name_ + "/is_focused", std::bind(&Driver::isCameraFocusedCb, this, _1, _2, _3));
+
 
   params_callback_handle_ =
     this->add_on_set_parameters_callback(std::bind(&Driver::parameters_cb, this, _1));
@@ -101,6 +105,7 @@ bool Driver::setup()
                             "/video_mapping" + name_ + "/image_rect",
                             frame_id_,
                             roi_exposure_,
+                            focus_threshold_,
                             PUBLISHER_BUFFER_SIZE));
 
   if (video_path_ != "")
@@ -369,6 +374,11 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_AUTO_EXPOSURE, "cv_cap_prop_auto_exposure");
       }
+      else if (name == "focus_threshold")
+      {
+        focus_threshold_ = parameter.as_double();
+        camera_->setFocusThreshold(focus_threshold_);
+      }
     }
     else if (type == rclcpp::ParameterType::PARAMETER_INTEGER)
     {
@@ -480,6 +490,26 @@ void Driver::GrabFrameCb(shared_ptr_request_id const, shared_ptr_grab_frame_requ
   response->success = true;
   response->message = "Successfully got frame!";
   RCLCPP_INFO(get_logger(), "[%s] Sent requested %s frame...", name_.c_str(), request->undistorted ? "undistorted" : "distorted");
+  return;
+}
+
+void Driver::isCameraFocusedCb(shared_ptr_request_id const, [[maybe_unused]] shared_ptr_bool_request const request,
+                               shared_ptr_bool_response response)
+{
+  if (!camera_)
+  {
+    response->success = false;
+    response->message = "Camera not initialized";
+    return;
+  }
+  if (camera_->is_empty())
+  {
+    response->success = false;
+    response->message = "Camera frame is empty";
+    return;
+  }
+  response->success = camera_->isFocused();
+  response->message = std::string("Camera is ") + (response->success ? "focused" : "not focused");
   return;
 }
 

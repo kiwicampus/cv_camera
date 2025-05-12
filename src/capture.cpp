@@ -10,7 +10,7 @@ namespace cv_camera
 namespace enc = sensor_msgs::image_encodings;
 
 Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name, 
-                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, uint32_t buffer_size)
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, uint32_t buffer_size)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
@@ -20,6 +20,7 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
       roi_exposure_(roi_exposure),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
+      focus_threshold_(focus_threshold),
       capture_delay_(rclcpp::Duration(0, 0.0))
 {
     int dur = 0;
@@ -29,6 +30,7 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
     node_->get_parameter_or("capture_delay", dur, dur);
     this->capture_delay_ = rclcpp::Duration(dur, 0.0);
 }
+
 
 void Capture::loadCameraInfo()
 {
@@ -415,6 +417,11 @@ double Capture::getProperty(int property_id)
   return 0.0;
 }
 
+void Capture::setFocusThreshold(double focus_threshold)
+{
+  focus_threshold_ = focus_threshold;
+}
+
 std::string Capture::execute_command(const char* command)
 {
   std::array<char, 128> buffer;
@@ -533,4 +540,41 @@ void Capture::set_error_image(const std::string& error_msg, int width, int heigh
   publish(std::move(msg_image));
 
 }
+
+bool Capture::is_empty()
+{
+    if (bridge_.image.empty())
+    {
+        RCLCPP_WARN_ONCE(node_->get_logger(), "[%s] Frame is empty.", node_->get_name());
+        return true;
+    }
+    return false;
+}
+
+bool Capture::isFocused()
+{
+    // Calculate image focus using Laplacian variance method
+    // Higher variance indicates more edges/details are in focus
+    double laplacianVariance = getLaplacianVariance();
+    RCLCPP_DEBUG(node_->get_logger(), "[%s] Laplacian variance: %f", node_->get_name(), laplacianVariance);
+    RCLCPP_DEBUG(node_->get_logger(), "[%s] focus_threshold_: %f", node_->get_name(), focus_threshold_);
+    
+    // Return true if variance is above threshold (image is focused)
+    return laplacianVariance >= focus_threshold_;
+}
+
+double Capture::getLaplacianVariance()
+{
+    cv::Mat frame = bridge_.image;
+    cv::Mat gray, laplacian;
+    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);  // Convert to grayscale
+    cv::Laplacian(gray, laplacian, CV_64F);         // Apply Laplacian filter
+
+    cv::Scalar mean, stddev;
+    cv::meanStdDev(laplacian, mean, stddev);
+
+    double variance = stddev[0] * stddev[0];
+    return variance;
+}
+
 }  // namespace cv_camera
