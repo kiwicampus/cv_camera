@@ -245,6 +245,14 @@ public:
   void rescaleCameraInfo(uint width, uint height);
 
   /**
+   * @brief rescale camera calibration to another resolution
+   * @param width new width
+   * @param height new height
+   * @return true if success using a hd_intrinsic_file instead of rescaling
+   */
+  bool rescaleFromFile(uint width, uint height);
+
+  /**
    * @brief initialize undistort rectify map
    */
   void initUndistortRectifyMap();
