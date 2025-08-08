@@ -248,6 +248,9 @@ bool Capture::grab()
 
 bool Capture::capture(bool flip_vertical, bool flip_horizontal)
 {
+  // Store previous frame before getting new one
+  previous_bridge_.image = bridge_.image.clone();
+  
   if (!cap_.retrieve(bridge_.image)) return false;
   if (flip_vertical) cv::flip(bridge_.image, bridge_.image, 0);
   if (flip_horizontal) cv::flip(bridge_.image, bridge_.image, 1);
@@ -602,6 +605,27 @@ double Capture::getLaplacianVariance()
 
     double variance = stddev[0] * stddev[0];
     return variance;
+}
+
+bool Capture::isFrameStale()
+{
+    // If previous frame is empty, this is the first frame
+    if (previous_bridge_.image.empty())
+    {
+        return false;
+    }
+    
+    // Compare current frame with previous frame
+    cv::Mat diff;
+    cv::absdiff(bridge_.image, previous_bridge_.image, diff);
+    
+    // Calculate mean difference
+    cv::Scalar mean_diff = cv::mean(diff);
+    double total_diff = mean_diff[0] + mean_diff[1] + mean_diff[2];
+    
+    // If difference is very small, frame is likely stale
+    // Threshold of 1.0 is very conservative - adjust as needed
+    return total_diff < 1.0;
 }
 
 }  // namespace cv_camera

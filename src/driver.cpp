@@ -240,12 +240,24 @@ void Driver::proceed()
   }
   else
   {
+    // Clear any buffered frames to ensure we get the latest
+    // This prevents publishing stale frames when buffer builds up
+    while (camera_->grab()) {
+      // Keep grabbing until we get the most recent frame
+    }
+    
     if (!camera_->capture(flip_vertical_, flip_horizontal_))
     {
       RCLCPP_WARN(get_logger(), "[%s] Couldn't capture frame", name_.c_str());
     }
     else
     {
+      // Check if frame is stale and log warning
+      if (camera_->isFrameStale())
+      {
+        RCLCPP_WARN(get_logger(), "[%s] Detected stale frame - publishing same image", name_.c_str());
+      }
+      
       if (always_rectify_ || (rectify_ && undistort_img_req_bool_))
         camera_->rectify();
     }

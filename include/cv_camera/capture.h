@@ -240,6 +240,12 @@ public:
   void set_error_image(const std::string& error_msg, int width = 640, int height = 360);
 
   /**
+   * @brief Check if the current frame is stale (same as previous)
+   * @return true if frame is stale, false if it's fresh
+   */
+  bool isFrameStale();
+
+  /**
    * @brief rescale camera calibration to another resolution
    */
   void rescaleCameraInfo(uint width, uint height);
@@ -361,6 +367,11 @@ private:
    * @brief this stores last captured image.
    */
   cv_bridge::CvImage bridge_;
+
+  /**
+   * @brief this stores previous captured image for stale frame detection.
+   */
+  cv_bridge::CvImage previous_bridge_;
 
   /**
    * @brief this stores last captured image info.
