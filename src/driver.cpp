@@ -179,7 +179,16 @@ bool Driver::setup()
   camera_->set_error_image(error_msg.str());
 
   // Log camera starting configuration
-  aspect_ratio_ = camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH) / camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT);
+  {
+    std::lock_guard<std::mutex> lock(parameter_mutex_);
+    double frame_height = camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT);
+    if (frame_height == 0.0) {
+      RCLCPP_WARN(get_logger(), "[%s] Invalid frame height (0), using default aspect ratio 16:9", name_.c_str());
+      aspect_ratio_ = 16.0 / 9.0; // Default fallback
+    } else {
+      aspect_ratio_ = camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH) / frame_height;
+    }
+  }
   // Update resolution to make sure it's set correctly
   update_resolution();
   RCLCPP_INFO(get_logger(), "(GOT VIDEO) %s: DEVICE: %d - SIZE: %dX%d - RATE: %d/%d - PROP_MODE: %f - EXPOSURE: %d",
@@ -311,6 +320,7 @@ void Driver::attempt_reconnection()
 
 rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector<rclcpp::Parameter>& parameters)
 {
+    std::lock_guard<std::mutex> lock(parameter_mutex_);
     auto result = param_manager_.parametersCb(parameters);
     /* Some extra logic after catch the new values if you need it */
     // reset the timer if publishing rate changed
@@ -386,8 +396,12 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       if (name == "width")
       {
         width_ = parameter.as_int();
-        // update height to maintain aspect ratio
-        height_ = int(width_ / aspect_ratio_);
+        // update height to maintain aspect ratio with safety check
+        if (aspect_ratio_ == 0.0) {
+          RCLCPP_WARN(get_logger(), "[%s] Invalid aspect ratio (0), keeping current height %d", name_.c_str(), height_);
+        } else {
+          height_ = int(width_ / aspect_ratio_);
+        }
         RCLCPP_INFO(get_logger(), "Setting new width to %ld and height to %d to maintain aspect ratio", parameter.as_int(), height_);
         // To set the underlying OpenCV parameter we cant set a parameter inside the setParameters callback
         // so we need to reset the timer to update the resolution
@@ -396,8 +410,12 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       else if (name == "height")
       {
         height_ = parameter.as_int();
-        // update width to maintain aspect ratio
-        width_ = int(height_ * aspect_ratio_);
+        // update width to maintain aspect ratio with safety check
+        if (aspect_ratio_ == 0.0) {
+          RCLCPP_WARN(get_logger(), "[%s] Invalid aspect ratio (0), keeping current width %d", name_.c_str(), width_);
+        } else {
+          width_ = int(height_ * aspect_ratio_);
+        }
         RCLCPP_INFO(get_logger(), "Setting new height to %ld and width to %d to maintain aspect ratio", parameter.as_int(), width_);
         // To set the underlying OpenCV parameter we cant set a parameter inside the setParameters callback
         // so we need to reset the timer to update the resolution
@@ -447,17 +465,27 @@ void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_reque
 
 void Driver::update_resolution()
 {
+  std::lock_guard<std::mutex> lock(parameter_mutex_);
+  if (updating_resolution_) {
+    return; // Prevent recursion
+  }
+  updating_resolution_ = true;
+  
   update_resolution_tmr_->cancel();
   if (width_ != camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH) || width_ != (int)camera_->getInfo().width)
   {
-    this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_width", (double)width_));
+    // Set OpenCV property directly instead of using set_parameter to avoid recursion
+    camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "cv_cap_prop_frame_width");
     camera_->rescaleCameraInfo(width_, height_);
   }
   if (height_ != camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT) || height_ != (int)camera_->getInfo().height)
   {
-    this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_height", (double)height_));
+    // Set OpenCV property directly instead of using set_parameter to avoid recursion
+    camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "cv_cap_prop_frame_height");
     camera_->rescaleCameraInfo(width_, height_);
   }
+  
+  updating_resolution_ = false;
 }
 
 void Driver::GrabFrameCb(shared_ptr_request_id const, shared_ptr_grab_frame_request const request,

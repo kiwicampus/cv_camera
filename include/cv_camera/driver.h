@@ -4,6 +4,7 @@
 #define CV_CAMERA_DRIVER_H
 
 #include "cv_camera/capture.h"
+#include <mutex>
 
 namespace cv_camera
 {
@@ -270,9 +271,9 @@ class Driver : public rclcpp::Node
    */
   int height_;
   /**
-   * @brief Camera aspect ratio.
+   * @brief Camera aspect ratio. Initial value is 16:9
    */
-  float aspect_ratio_;
+  float aspect_ratio_ = 1.777777778;
   /**
    * @brief Camera cv_cap_prop_brightness.
    */
@@ -321,6 +322,17 @@ class Driver : public rclcpp::Node
   // Parameters Handling
   NodeParamManager param_manager_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr params_callback_handle_;
+  
+  /**
+   * @brief Mutex to protect parameter changes and camera property access
+   */
+  std::mutex parameter_mutex_;
+  
+  /**
+   * @brief Flag to prevent recursive parameter setting
+   */
+  bool updating_resolution_ = false;
+  
   /**
    * @brief Callback executed when a parameter change is detected
    * @param parameters list of changed parameters
