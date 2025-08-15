@@ -273,7 +273,7 @@ class Driver : public rclcpp::Node
   /**
    * @brief Camera aspect ratio. Initial value is 16:9
    */
-  float aspect_ratio_ = 1.777777778;
+  float aspect_ratio_ = 16.0 / 9.0;
   /**
    * @brief Camera cv_cap_prop_brightness.
    */

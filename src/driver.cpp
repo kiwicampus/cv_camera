@@ -320,7 +320,6 @@ void Driver::attempt_reconnection()
 
 rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector<rclcpp::Parameter>& parameters)
 {
-    std::lock_guard<std::mutex> lock(parameter_mutex_);
     auto result = param_manager_.parametersCb(parameters);
     /* Some extra logic after catch the new values if you need it */
     // reset the timer if publishing rate changed
@@ -470,18 +469,16 @@ void Driver::update_resolution()
     return; // Prevent recursion
   }
   updating_resolution_ = true;
-  
+
   update_resolution_tmr_->cancel();
   if (width_ != camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH) || width_ != (int)camera_->getInfo().width)
   {
-    // Set OpenCV property directly instead of using set_parameter to avoid recursion
-    camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "cv_cap_prop_frame_width");
+    this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_width", (double)width_));
     camera_->rescaleCameraInfo(width_, height_);
   }
   if (height_ != camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT) || height_ != (int)camera_->getInfo().height)
   {
-    // Set OpenCV property directly instead of using set_parameter to avoid recursion
-    camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "cv_cap_prop_frame_height");
+    this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_height", (double)height_));
     camera_->rescaleCameraInfo(width_, height_);
   }
   
