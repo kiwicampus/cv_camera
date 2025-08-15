@@ -49,8 +49,11 @@ public:
    * @param node ROS node handle for advertise topic.
    * @param img_topic_name name of topic to publish (this may be image_raw).
    * @param cam_info_topic_name name of topic to publish cam info (this may be camera_info).
-   * @param buffer_size size of publisher buffer.
+   * @param rect_image_topic_name name of topic to publish rectified image (this may be image_rect).
    * @param frame_id frame_id of publishing messages.
+   * @param roi_exposure enable/disable ROI exposure control.
+   * @param focus_threshold focus threshold.
+   * @param buffer_size size of publisher buffer.
    */
   Capture(rclcpp::Node::SharedPtr node,
           const std::string &img_topic_name,
@@ -269,8 +272,6 @@ public:
 
 private:
 
-  // Parameters
-  double focus_threshold_;
   /**
   * @brief Get Laplacian variance of last captured image
   * @return Laplacian variance value
@@ -325,6 +326,10 @@ private:
    * @brief Enables/Disables out custom exposure controller depending on histogram
    */
   bool roi_exposure_;
+  /**
+   * @brief Focus threshold for focus detection
+   */
+  double focus_threshold_;
   /**
    * @brief timestamp of capture image
    */

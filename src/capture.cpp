@@ -18,9 +18,9 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
       rect_img_topic_name_(rect_img_topic_name),
       frame_id_(frame_id),
       roi_exposure_(roi_exposure),
+      focus_threshold_(focus_threshold),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
-      focus_threshold_(focus_threshold),
       capture_delay_(rclcpp::Duration(0, 0.0))
 {
     int dur = 0;
