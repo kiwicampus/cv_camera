@@ -369,10 +369,6 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_EXPOSURE, "cv_cap_prop_exposure");
       }
-      else if (name == "cv_cap_prop_exposure")
-      {
-        camera_->setPropertyFromParam(cv::CAP_PROP_EXPOSURE, "cv_cap_prop_exposure");
-      }
       else if (name == "cv_cap_prop_auto_exposure")
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_AUTO_EXPOSURE, "cv_cap_prop_auto_exposure");
@@ -381,11 +377,6 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       {
         focus_threshold_ = parameter.as_double();
         camera_->setFocusThreshold(focus_threshold_);
-      }
-      else if (name == "check_focus_in_img_center")
-      {
-        check_focus_in_img_center_ = parameter.as_bool();
-        camera_->setCheckFocusInImgCenter(check_focus_in_img_center_);
       }
     }
     else if (type == rclcpp::ParameterType::PARAMETER_INTEGER)
@@ -410,6 +401,14 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         // so we need to reset the timer to update the resolution
         update_resolution_tmr_->reset();
       }
+    else if (type == rclcpp::ParameterType::PARAMETER_BOOL)
+    {
+      if (name == "check_focus_in_img_center")
+      {
+        check_focus_in_img_center_ = parameter.as_bool();
+        camera_->setCheckFocusInImgCenter(check_focus_in_img_center_);
+      }
+    }
     }
     else if (type == rclcpp::ParameterType::PARAMETER_STRING)
     {
