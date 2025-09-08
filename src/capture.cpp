@@ -10,7 +10,7 @@ namespace cv_camera
 namespace enc = sensor_msgs::image_encodings;
 
 Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name, 
-                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, uint32_t buffer_size)
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, uint32_t buffer_size)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
@@ -19,6 +19,7 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
       frame_id_(frame_id),
       roi_exposure_(roi_exposure),
       focus_threshold_(focus_threshold),
+      check_focus_in_img_center_(check_focus_in_img_center),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
       capture_delay_(rclcpp::Duration(0, 0.0))
@@ -449,6 +450,11 @@ void Capture::setFocusThreshold(double focus_threshold)
   focus_threshold_ = focus_threshold;
 }
 
+void Capture::setCheckFocusInImgCenter(bool check_focus_in_img_center)
+{
+  check_focus_in_img_center_ = check_focus_in_img_center;
+}
+
 std::string Capture::execute_command(const char* command)
 {
   std::array<char, 128> buffer;
@@ -593,6 +599,11 @@ bool Capture::isFocused()
 double Capture::getLaplacianVariance()
 {
     cv::Mat frame = bridge_.image;
+    if (check_focus_in_img_center_)
+    {
+      // Get the center of the image
+      frame = frame(cv::Rect(frame.cols / 4, frame.rows / 4, frame.cols / 2, frame.rows / 2));
+    }
     cv::Mat gray, laplacian;
     cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);  // Convert to grayscale
     cv::Laplacian(gray, laplacian, CV_64F);         // Apply Laplacian filter
