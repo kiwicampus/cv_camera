@@ -401,14 +401,6 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         // so we need to reset the timer to update the resolution
         update_resolution_tmr_->reset();
       }
-    else if (type == rclcpp::ParameterType::PARAMETER_BOOL)
-    {
-      if (name == "check_focus_in_img_center")
-      {
-        check_focus_in_img_center_ = parameter.as_bool();
-        camera_->setCheckFocusInImgCenter(check_focus_in_img_center_);
-      }
-    }
     }
     else if (type == rclcpp::ParameterType::PARAMETER_STRING)
     {
@@ -435,6 +427,11 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
           pub_cam_status_->publish(*cam_status_);
           publish_diagnostic(ONLINE);
         }
+      }
+      else if (name == "check_focus_in_img_center")
+      {
+        check_focus_in_img_center_ = parameter.as_bool();
+        camera_->setCheckFocusInImgCenter(check_focus_in_img_center_);
       }
     }
   }
