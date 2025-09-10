@@ -49,8 +49,12 @@ public:
    * @param node ROS node handle for advertise topic.
    * @param img_topic_name name of topic to publish (this may be image_raw).
    * @param cam_info_topic_name name of topic to publish cam info (this may be camera_info).
-   * @param buffer_size size of publisher buffer.
+   * @param rect_image_topic_name name of topic to publish rectified image (this may be image_rect).
    * @param frame_id frame_id of publishing messages.
+   * @param roi_exposure enable/disable ROI exposure control.
+   * @param focus_threshold focus threshold.
+   * @param check_focus_in_img_center check focus in image center.
+   * @param buffer_size size of publisher buffer.
    */
   Capture(rclcpp::Node::SharedPtr node,
           const std::string &img_topic_name,
@@ -59,6 +63,7 @@ public:
           const std::string &frame_id,
           const bool roi_exposure,
           double focus_threshold,
+          bool check_focus_in_img_center,
           uint32_t buffer_size);
 
   /**
@@ -235,6 +240,12 @@ public:
   void setFocusThreshold(double focus_threshold);
 
   /**
+   * @brief Set check focus in image center
+   * @param check_focus_in_img_center check focus in image center
+   */
+  void setCheckFocusInImgCenter(bool check_focus_in_img_center);
+
+  /**
    * @brief Set black error image in case of error.
    */
   void set_error_image(const std::string& error_msg, int width = 640, int height = 360);
@@ -269,8 +280,6 @@ public:
 
 private:
 
-  // Parameters
-  double focus_threshold_;
   /**
   * @brief Get Laplacian variance of last captured image
   * @return Laplacian variance value
@@ -325,6 +334,14 @@ private:
    * @brief Enables/Disables out custom exposure controller depending on histogram
    */
   bool roi_exposure_;
+  /**
+   * @brief Focus threshold for focus detection
+   */
+  double focus_threshold_;
+  /**
+   * @brief Check focus in image center
+   */
+  bool check_focus_in_img_center_;
   /**
    * @brief timestamp of capture image
    */
