@@ -17,11 +17,11 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &topic_name,
       frame_id_(frame_id),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
-      capture_delay_(rclcpp::Duration(0))
+      capture_delay_(rclcpp::Duration(0,0))
 {
     int dur = 0;
     node_->get_parameter_or("capture_delay",dur,dur);
-    this->capture_delay_ = rclcpp::Duration(dur);
+    this->capture_delay_ = rclcpp::Duration(dur,0);
 }
 
 void Capture::loadCameraInfo()
