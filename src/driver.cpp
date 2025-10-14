@@ -245,13 +245,13 @@ void Driver::proceed()
     }
   }
   else
-  { 
+  {
     if (!camera_->capture(flip_vertical_, flip_horizontal_))
     {
       RCLCPP_WARN(get_logger(), "[%s] Couldn't capture frame", name_.c_str());
     }
     else
-    { 
+    {
       if (always_rectify_ || (rectify_ && undistort_img_req_bool_))
         camera_->rectify();
     }
