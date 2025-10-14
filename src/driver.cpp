@@ -600,6 +600,22 @@ void Driver::ReleaseCamCb(shared_ptr_request_id const, shared_ptr_bool_request c
     return;
   }
 }
+
+void Driver::isFrameStaleCb(shared_ptr_request_id const,  [[maybe_unused]] shared_ptr_bool_request const request,
+                            shared_ptr_bool_response response)
+{
+  if (camera_->is_empty())
+  {
+    response->success = false;
+    response->message = "Camera frame is empty";
+    return;
+  }
+
+  response->success = camera_->isFrameStale();
+  response->message = std::string("Camera frame is ") + (response->success ? "stale" : "not stale");
+  return;
+}
+
 void Driver::publish_diagnostic(Status status)
 {
   auto message = diagnostic_msgs::msg::DiagnosticArray();

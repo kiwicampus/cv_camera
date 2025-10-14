@@ -115,6 +115,11 @@ class Driver : public rclcpp::Node
    */
   void isCameraFocusedCb(shared_ptr_request_id const request_header, shared_ptr_bool_request const request,
                      shared_ptr_bool_response response);
+  /**
+   * @brief callback to check if the camera is stale.
+   */
+  void isFrameStaleCb(shared_ptr_request_id const request_header, shared_ptr_bool_request const request,
+                     shared_ptr_bool_response response);
  private:
    /**
    * @brief ROS subscription for undistort request.
@@ -156,6 +161,10 @@ class Driver : public rclcpp::Node
    * @brief ROS Service for checking if the camera is focused.
    */
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr is_camera_focused_srv_;
+  /**
+   * @brief ROS Service for checking if the camera is stale.
+   */
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr is_frame_stale_srv_;
   /**
    * @brief wrapper of cv::VideoCapture.
    */
