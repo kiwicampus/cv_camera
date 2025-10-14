@@ -630,12 +630,15 @@ bool Capture::isFrameStale()
     cv::Mat diff;
     cv::absdiff(bridge_.image, previous_bridge_.image, diff);
     
-    // Calculate mean difference
+    // Calculate mean difference across all color channels (B,G,R)
     cv::Scalar mean_diff = cv::mean(diff);
     double total_diff = mean_diff[0] + mean_diff[1] + mean_diff[2];
     
-    // If difference is very small, frame is likely stale
-    // Threshold of 1.0 is very conservative - adjust as needed
+    // total_diff represents the sum of mean differences across BGR channels (0-255 per channel)
+    // total_diff = 0.0: frames are identical
+    // total_diff < 1.0: extremely minor differences, likely noise
+    // total_diff > 1.0: noticeable frame-to-frame changes
+    // Using threshold of 1.0 means even tiny changes will prevent frame from being marked stale
     return total_diff < 1.0;
 }
 
