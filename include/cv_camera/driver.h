@@ -324,7 +324,7 @@ class Driver : public rclcpp::Node
   int video_stream_recovery_tries_;
   double focus_threshold_;
   bool check_focus_in_img_center_;
-
+  double stale_frame_threshold_;
   /**
    * @brief Reconnection attempts to open a camera port
    */

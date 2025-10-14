@@ -53,6 +53,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
   param_manager_.addParameter(focus_threshold_, "focus_threshold", 100.0);
   param_manager_.addParameter(check_focus_in_img_center_, "check_focus_in_img_center", false);
+  param_manager_.addParameter(stale_frame_threshold_, "stale_frame_threshold", 1.0);
 
   // Video capture parameters
   param_manager_.addParameter(width_, "width", 640);
@@ -111,6 +112,7 @@ bool Driver::setup()
                             roi_exposure_,
                             focus_threshold_,
                             check_focus_in_img_center_,
+                            stale_frame_threshold_,
                             PUBLISHER_BUFFER_SIZE));
 
   if (video_path_ != "")
@@ -436,6 +438,11 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       {
         check_focus_in_img_center_ = parameter.as_bool();
         camera_->setCheckFocusInImgCenter(check_focus_in_img_center_);
+      }
+      else if (name == "stale_frame_threshold")
+      {
+        stale_frame_threshold_ = parameter.as_double();
+        camera_->setStaleFrameThreshold(stale_frame_threshold_);
       }
     }
   }

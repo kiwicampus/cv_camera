@@ -54,6 +54,7 @@ public:
    * @param roi_exposure enable/disable ROI exposure control.
    * @param focus_threshold focus threshold.
    * @param check_focus_in_img_center check focus in image center.
+   * @param stale_frame_threshold stale frame threshold.
    * @param buffer_size size of publisher buffer.
    */
   Capture(rclcpp::Node::SharedPtr node,
@@ -64,6 +65,7 @@ public:
           const bool roi_exposure,
           double focus_threshold,
           bool check_focus_in_img_center,
+          double stale_frame_threshold,
           uint32_t buffer_size);
 
   /**
@@ -246,6 +248,12 @@ public:
   void setCheckFocusInImgCenter(bool check_focus_in_img_center);
 
   /**
+   * @brief Set stale frame threshold
+   * @param stale_frame_threshold stale frame threshold
+   */
+  void setStaleFrameThreshold(double stale_frame_threshold);
+
+  /**
    * @brief Set black error image in case of error.
    */
   void set_error_image(const std::string& error_msg, int width = 640, int height = 360);
@@ -348,6 +356,10 @@ private:
    * @brief Check focus in image center
    */
   bool check_focus_in_img_center_;
+  /**
+   * @brief Stale frame threshold
+   */
+  double stale_frame_threshold_;
   /**
    * @brief timestamp of capture image
    */

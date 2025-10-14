@@ -10,7 +10,7 @@ namespace cv_camera
 namespace enc = sensor_msgs::image_encodings;
 
 Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name, 
-                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, uint32_t buffer_size)
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, double stale_frame_threshold, uint32_t buffer_size)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
@@ -20,6 +20,7 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
       roi_exposure_(roi_exposure),
       focus_threshold_(focus_threshold),
       check_focus_in_img_center_(check_focus_in_img_center),
+      stale_frame_threshold_(stale_frame_threshold),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
       capture_delay_(rclcpp::Duration(0, 0.0))
@@ -458,6 +459,11 @@ void Capture::setCheckFocusInImgCenter(bool check_focus_in_img_center)
   check_focus_in_img_center_ = check_focus_in_img_center;
 }
 
+void Capture::setStaleFrameThreshold(double stale_frame_threshold)
+{
+  stale_frame_threshold_ = stale_frame_threshold;
+}
+
 std::string Capture::execute_command(const char* command)
 {
   std::array<char, 128> buffer;
@@ -639,7 +645,7 @@ bool Capture::isFrameStale()
     // total_diff < 1.0: extremely minor differences, likely noise
     // total_diff > 1.0: noticeable frame-to-frame changes
     // Using threshold of 1.0 means even tiny changes will prevent frame from being marked stale
-    return total_diff < 1.0;
+    return total_diff < stale_frame_threshold_;
 }
 
 }  // namespace cv_camera
