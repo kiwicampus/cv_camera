@@ -52,6 +52,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
   param_manager_.addParameter(focus_threshold_, "focus_threshold", 100.0);
+  param_manager_.addParameter(check_focus_in_img_center_, "check_focus_in_img_center", false);
 
   // Video capture parameters
   param_manager_.addParameter(width_, "width", 640);
@@ -109,6 +110,7 @@ bool Driver::setup()
                             frame_id_,
                             roi_exposure_,
                             focus_threshold_,
+                            check_focus_in_img_center_,
                             PUBLISHER_BUFFER_SIZE));
 
   if (video_path_ != "")
@@ -371,10 +373,6 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_EXPOSURE, "cv_cap_prop_exposure");
       }
-      else if (name == "cv_cap_prop_exposure")
-      {
-        camera_->setPropertyFromParam(cv::CAP_PROP_EXPOSURE, "cv_cap_prop_exposure");
-      }
       else if (name == "cv_cap_prop_auto_exposure")
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_AUTO_EXPOSURE, "cv_cap_prop_auto_exposure");
@@ -433,6 +431,11 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
           pub_cam_status_->publish(*cam_status_);
           publish_diagnostic(ONLINE);
         }
+      }
+      else if (name == "check_focus_in_img_center")
+      {
+        check_focus_in_img_center_ = parameter.as_bool();
+        camera_->setCheckFocusInImgCenter(check_focus_in_img_center_);
       }
     }
   }

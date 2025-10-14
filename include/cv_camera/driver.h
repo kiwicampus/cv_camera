@@ -322,8 +322,8 @@ class Driver : public rclcpp::Node
    */
   int video_stream_recovery_time_;
   int video_stream_recovery_tries_;
-  double focus_threshold_;  // Threshold for determining if a camera is unfocused.
-  int buffer_size_;  // Buffer size for camera capture to prevent frame buildup
+  double focus_threshold_;
+  bool check_focus_in_img_center_;
 
   /**
    * @brief Reconnection attempts to open a camera port
