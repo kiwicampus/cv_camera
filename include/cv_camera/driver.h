@@ -34,7 +34,6 @@ class Driver : public rclcpp::Node
 
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr pub_cam_status_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr pub_cam_diagnostic_;
-  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_stale_frame_;
 
   /**
    * Status of the cameras for easier handling
@@ -87,10 +86,6 @@ class Driver : public rclcpp::Node
    * @brief Update resolution of the camera when parameter is updated in runtime
   */
   void update_resolution();
-  /**
-   * @brief callback to check if the camera is stale.
-   */
-  void check_stale_frame();
   /**
    * @brief callback for pause/resume image publishing
    *        1 -> pause

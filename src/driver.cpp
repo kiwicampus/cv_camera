@@ -82,7 +82,6 @@ void Driver::parameters_setup()
   options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
   pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", rclcpp::QoS(1).keep_all().transient_local().reliable(), options);
   pub_cam_diagnostic_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics", 1);
-  pub_stale_frame_ = this->create_publisher<std_msgs::msg::Bool>("/video_mapping" + name_ + "/stale_frame", rclcpp::QoS(1).keep_all().transient_local().reliable(), options);
 
   // Services
   restart_srv_ = this->create_service<std_srvs::srv::Trigger>(
@@ -95,6 +94,8 @@ void Driver::parameters_setup()
     name_ + "/grab_frame", std::bind(&Driver::GrabFrameCb, this, _1, _2, _3));
   is_camera_focused_srv_ = this->create_service<std_srvs::srv::SetBool>(
     name_ + "/is_focused", std::bind(&Driver::isCameraFocusedCb, this, _1, _2, _3));
+  is_frame_stale_srv_ = this->create_service<std_srvs::srv::SetBool>(
+    name_ + "/is_frame_stale", std::bind(&Driver::isFrameStaleCb, this, _1, _2, _3));
 
 
   params_callback_handle_ =
@@ -172,8 +173,6 @@ bool Driver::setup()
   update_resolution_tmr_ =
     this->create_wall_timer(std::chrono::milliseconds(200), std::bind(&Driver::update_resolution, this));
   update_resolution_tmr_->cancel();
-  stale_frame_check_tmr_ =
-    this->create_wall_timer(std::chrono::seconds(stale_frame_check_time_), std::bind(&Driver::check_stale_frame, this));
 
   cam_status_ = std::make_shared<std_msgs::msg::UInt8>();
   cam_status_->data = ONLINE;
@@ -506,22 +505,6 @@ void Driver::GrabFrameCb(shared_ptr_request_id const, shared_ptr_grab_frame_requ
   response->message = "Successfully got frame!";
   RCLCPP_INFO(get_logger(), "[%s] Sent requested %s frame...", name_.c_str(), request->undistorted ? "undistorted" : "distorted");
   return;
-}
-
-void Driver::check_stale_frame()
-{
-  std_msgs::msg::Bool msg;
-  if (camera_->isFrameStale())
-  {
-    RCLCPP_WARN(get_logger(), "[%s] Detected stale frame - publishing same image", name_.c_str());
-    msg.data = true;
-    pub_stale_frame_->publish(msg);
-  }
-  else
-  {
-    msg.data = false;
-    pub_stale_frame_->publish(msg);
-  }
 }
 
 void Driver::isCameraFocusedCb(shared_ptr_request_id const, [[maybe_unused]] shared_ptr_bool_request const request,
