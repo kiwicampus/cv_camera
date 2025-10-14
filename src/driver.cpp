@@ -37,7 +37,6 @@ void Driver::parameters_setup()
   param_manager_.addParameter(device_id_, "device_id", -1);
   param_manager_.addParameter(publish_rate_, "publish_rate", 15.0f);
   param_manager_.addParameter(read_rate_, "read_rate", 15.0f);
-  param_manager_.addParameter(stale_frame_check_time_, "stale_frame_check_time", 60); // every minute
   param_manager_.addParameter(flip_vertical_, "flip_vertical", false);
   param_manager_.addParameter(flip_horizontal_, "flip_horizontal", false);
   param_manager_.addParameter(roi_exposure_, "roi_exposure", false);

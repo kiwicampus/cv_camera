@@ -133,10 +133,6 @@ class Driver : public rclcpp::Node
    */
   rclcpp::TimerBase::SharedPtr update_resolution_tmr_;
   /**
-   * @brief ROS private timer for checking stale frame.
-   */
-  rclcpp::TimerBase::SharedPtr stale_frame_check_tmr_;
-  /**
    * @brief ROS Service for triggering re setup of the node.
    */
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr restart_srv_;
@@ -197,10 +193,6 @@ class Driver : public rclcpp::Node
    * @brief read rate
   */
   float read_rate_;
-  /**
-   * @brief stale frame check time.
-  */
-  int stale_frame_check_time_;
   /**
    * @brief Camera frame_id.
    */
