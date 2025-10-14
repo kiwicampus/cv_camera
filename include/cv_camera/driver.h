@@ -32,10 +32,9 @@ class Driver : public rclcpp::Node
   explicit Driver(const rclcpp::NodeOptions& options);
   ~Driver();
 
-
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr pub_cam_status_;
-
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr pub_cam_diagnostic_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_stale_frame_;
 
   /**
    * Status of the cameras for easier handling
@@ -89,6 +88,10 @@ class Driver : public rclcpp::Node
   */
   void update_resolution();
   /**
+   * @brief callback to check if the camera is stale.
+   */
+  void check_stale_frame();
+  /**
    * @brief callback for pause/resume image publishing
    *        1 -> pause
    *        0 -> resume
@@ -129,6 +132,10 @@ class Driver : public rclcpp::Node
    * @brief ROS private timer for updating resolution.
    */
   rclcpp::TimerBase::SharedPtr update_resolution_tmr_;
+  /**
+   * @brief ROS private timer for checking stale frame.
+   */
+  rclcpp::TimerBase::SharedPtr stale_frame_check_tmr_;
   /**
    * @brief ROS Service for triggering re setup of the node.
    */
@@ -186,6 +193,10 @@ class Driver : public rclcpp::Node
    * @brief read rate
   */
   float read_rate_;
+  /**
+   * @brief stale frame check time.
+  */
+  int stale_frame_check_time_;
   /**
    * @brief Camera frame_id.
    */

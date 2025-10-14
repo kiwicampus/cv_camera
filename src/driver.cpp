@@ -37,6 +37,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter(device_id_, "device_id", -1);
   param_manager_.addParameter(publish_rate_, "publish_rate", 15.0f);
   param_manager_.addParameter(read_rate_, "read_rate", 15.0f);
+  param_manager_.addParameter(stale_frame_check_time_, "stale_frame_check_time", 60); // every minute
   param_manager_.addParameter(flip_vertical_, "flip_vertical", false);
   param_manager_.addParameter(flip_horizontal_, "flip_horizontal", false);
   param_manager_.addParameter(roi_exposure_, "roi_exposure", false);
@@ -79,6 +80,7 @@ void Driver::parameters_setup()
   options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
   pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", rclcpp::QoS(1).keep_all().transient_local().reliable(), options);
   pub_cam_diagnostic_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics", 1);
+  pub_stale_frame_ = this->create_publisher<std_msgs::msg::Bool>("/video_mapping" + name_ + "/stale_frame", rclcpp::QoS(1).keep_all().transient_local().reliable(), options);
 
   // Services
   restart_srv_ = this->create_service<std_srvs::srv::Trigger>(
@@ -166,6 +168,8 @@ bool Driver::setup()
   update_resolution_tmr_ =
     this->create_wall_timer(std::chrono::milliseconds(200), std::bind(&Driver::update_resolution, this));
   update_resolution_tmr_->cancel();
+  stale_frame_check_tmr_ =
+    this->create_wall_timer(std::chrono::seconds(stale_frame_check_time_), std::bind(&Driver::check_stale_frame, this));
 
   cam_status_ = std::make_shared<std_msgs::msg::UInt8>();
   cam_status_->data = ONLINE;
@@ -239,25 +243,13 @@ void Driver::proceed()
     }
   }
   else
-  {
-    // Clear any buffered frames to ensure we get the latest
-    // This prevents publishing stale frames when buffer builds up
-    while (camera_->grab()) {
-      // Keep grabbing until we get the most recent frame
-    }
-    
+  { 
     if (!camera_->capture(flip_vertical_, flip_horizontal_))
     {
       RCLCPP_WARN(get_logger(), "[%s] Couldn't capture frame", name_.c_str());
     }
     else
-    {
-      // Check if frame is stale and log warning
-      if (camera_->isFrameStale())
-      {
-        RCLCPP_WARN(get_logger(), "[%s] Detected stale frame - publishing same image", name_.c_str());
-      }
-      
+    { 
       if (always_rectify_ || (rectify_ && undistort_img_req_bool_))
         camera_->rectify();
     }
@@ -504,6 +496,22 @@ void Driver::GrabFrameCb(shared_ptr_request_id const, shared_ptr_grab_frame_requ
   response->message = "Successfully got frame!";
   RCLCPP_INFO(get_logger(), "[%s] Sent requested %s frame...", name_.c_str(), request->undistorted ? "undistorted" : "distorted");
   return;
+}
+
+void Driver::check_stale_frame()
+{
+  std_msgs::msg::Bool msg;
+  if (camera_->isFrameStale())
+  {
+    RCLCPP_WARN(get_logger(), "[%s] Detected stale frame - publishing same image", name_.c_str());
+    msg.data = true;
+    pub_stale_frame_->publish(msg);
+  }
+  else
+  {
+    msg.data = false;
+    pub_stale_frame_->publish(msg);
+  }
 }
 
 void Driver::isCameraFocusedCb(shared_ptr_request_id const, [[maybe_unused]] shared_ptr_bool_request const request,
