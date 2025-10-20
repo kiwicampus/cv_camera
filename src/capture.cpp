@@ -638,14 +638,14 @@ bool Capture::isFrameStale()
     
     // Calculate mean difference across all color channels (B,G,R)
     cv::Scalar mean_diff = cv::mean(diff);
-    double total_diff = mean_diff[0] + mean_diff[1] + mean_diff[2];
+    double avg_diff = (mean_diff[0] + mean_diff[1] + mean_diff[2]) / 3.0;
+    double diff_percentage = (avg_diff / 255.0) * 100.0;
     
-    // total_diff represents the sum of mean differences across BGR channels (0-255 per channel)
-    // total_diff = 0.0: frames are identical
-    // total_diff < 1.0: extremely minor differences, likely noise
-    // total_diff > 1.0: noticeable frame-to-frame changes
-    // Using threshold of 1.0 means even tiny changes will prevent frame from being marked stale
-    return total_diff < stale_frame_threshold_;
+    // diff_percentage represents how different the frames are (0-100)
+    // 0%: frames are identical
+    // 100%: maximum possible difference
+    // Threshold is in percentage - frames with difference below threshold are considered stale
+    return diff_percentage < stale_frame_threshold_;
 }
 
 }  // namespace cv_camera
