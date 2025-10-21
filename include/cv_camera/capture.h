@@ -54,7 +54,7 @@ public:
    * @param roi_exposure enable/disable ROI exposure control.
    * @param focus_threshold focus threshold.
    * @param check_focus_in_img_center check focus in image center.
-   * @param stale_frame_threshold stale frame threshold.
+   * @param stale_frame_threshold threshold for determining if a camera is stale. 0.0 (no changes) to 100.0 (maximum possible difference)
    * @param buffer_size size of publisher buffer.
    */
   Capture(rclcpp::Node::SharedPtr node,
@@ -249,7 +249,7 @@ public:
 
   /**
    * @brief Set stale frame threshold
-   * @param stale_frame_threshold stale frame threshold
+   * @param stale_frame_threshold threshold for determining if a camera is stale. 0.0 (no changes) to 100.0 (maximum possible difference)
    */
   void setStaleFrameThreshold(double stale_frame_threshold);
 
