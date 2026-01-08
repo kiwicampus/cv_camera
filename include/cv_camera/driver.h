@@ -32,9 +32,7 @@ class Driver : public rclcpp::Node
   explicit Driver(const rclcpp::NodeOptions& options);
   ~Driver();
 
-
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr pub_cam_status_;
-
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr pub_cam_diagnostic_;
 
   /**
@@ -112,6 +110,11 @@ class Driver : public rclcpp::Node
    */
   void isCameraFocusedCb(shared_ptr_request_id const request_header, shared_ptr_bool_request const request,
                      shared_ptr_bool_response response);
+  /**
+   * @brief callback to check if the camera is stale.
+   */
+  void isFrameStaleCb(shared_ptr_request_id const request_header, shared_ptr_bool_request const request,
+                     shared_ptr_bool_response response);
  private:
    /**
    * @brief ROS subscription for undistort request.
@@ -149,6 +152,10 @@ class Driver : public rclcpp::Node
    * @brief ROS Service for checking if the camera is focused.
    */
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr is_camera_focused_srv_;
+  /**
+   * @brief ROS Service for checking if the camera is stale.
+   */
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr is_frame_stale_srv_;
   /**
    * @brief wrapper of cv::VideoCapture.
    */
@@ -313,7 +320,7 @@ class Driver : public rclcpp::Node
   int video_stream_recovery_tries_;
   double focus_threshold_;
   bool check_focus_in_img_center_;
-
+  double stale_frame_threshold_;
   /**
    * @brief Reconnection attempts to open a camera port
    */

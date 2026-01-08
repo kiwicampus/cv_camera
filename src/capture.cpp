@@ -10,7 +10,7 @@ namespace cv_camera
 namespace enc = sensor_msgs::image_encodings;
 
 Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name, 
-                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, uint32_t buffer_size)
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, double stale_frame_threshold, uint32_t buffer_size)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
@@ -20,6 +20,7 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
       roi_exposure_(roi_exposure),
       focus_threshold_(focus_threshold),
       check_focus_in_img_center_(check_focus_in_img_center),
+      stale_frame_threshold_(stale_frame_threshold),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
       capture_delay_(rclcpp::Duration(0, 0.0))
@@ -249,6 +250,9 @@ bool Capture::grab()
 
 bool Capture::capture(bool flip_vertical, bool flip_horizontal)
 {
+  // Store previous frame before getting new one
+  previous_bridge_.image = bridge_.image.clone();
+  
   if (!cap_.retrieve(bridge_.image)) return false;
   if (flip_vertical) cv::flip(bridge_.image, bridge_.image, 0);
   if (flip_horizontal) cv::flip(bridge_.image, bridge_.image, 1);
@@ -455,6 +459,11 @@ void Capture::setCheckFocusInImgCenter(bool check_focus_in_img_center)
   check_focus_in_img_center_ = check_focus_in_img_center;
 }
 
+void Capture::setStaleFrameThreshold(double stale_frame_threshold)
+{
+  stale_frame_threshold_ = stale_frame_threshold;
+}
+
 std::string Capture::execute_command(const char* command)
 {
   std::array<char, 128> buffer;
@@ -613,6 +622,30 @@ double Capture::getLaplacianVariance()
 
     double variance = stddev[0] * stddev[0];
     return variance;
+}
+
+bool Capture::isFrameStale()
+{
+    // If previous frame is empty, this is the first frame
+    if (previous_bridge_.image.empty())
+    {
+        return false;
+    }
+    
+    // Compare current frame with previous frame
+    cv::Mat diff;
+    cv::absdiff(bridge_.image, previous_bridge_.image, diff);
+    
+    // Calculate mean difference across all color channels (B,G,R)
+    cv::Scalar mean_diff = cv::mean(diff);
+    double avg_diff = (mean_diff[0] + mean_diff[1] + mean_diff[2]) / 3.0;
+    double diff_percentage = (avg_diff / 255.0) * 100.0;
+    
+    // diff_percentage represents how different the frames are (0-100)
+    // 0%: frames are identical
+    // 100%: maximum possible difference
+    // Threshold is in percentage - frames with difference below threshold are considered stale
+    return diff_percentage < stale_frame_threshold_;
 }
 
 }  // namespace cv_camera

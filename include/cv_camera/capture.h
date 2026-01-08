@@ -54,6 +54,7 @@ public:
    * @param roi_exposure enable/disable ROI exposure control.
    * @param focus_threshold focus threshold.
    * @param check_focus_in_img_center check focus in image center.
+   * @param stale_frame_threshold threshold for determining if a camera is stale. 0.0 (no changes) to 100.0 (maximum possible difference)
    * @param buffer_size size of publisher buffer.
    */
   Capture(rclcpp::Node::SharedPtr node,
@@ -64,6 +65,7 @@ public:
           const bool roi_exposure,
           double focus_threshold,
           bool check_focus_in_img_center,
+          double stale_frame_threshold,
           uint32_t buffer_size);
 
   /**
@@ -246,9 +248,21 @@ public:
   void setCheckFocusInImgCenter(bool check_focus_in_img_center);
 
   /**
+   * @brief Set stale frame threshold
+   * @param stale_frame_threshold threshold for determining if a camera is stale. 0.0 (no changes) to 100.0 (maximum possible difference)
+   */
+  void setStaleFrameThreshold(double stale_frame_threshold);
+
+  /**
    * @brief Set black error image in case of error.
    */
   void set_error_image(const std::string& error_msg, int width = 640, int height = 360);
+
+  /**
+   * @brief Check if the current frame is stale (same as previous)
+   * @return true if frame is stale, false if it's fresh
+   */
+  bool isFrameStale();
 
   /**
    * @brief rescale camera calibration to another resolution
@@ -343,6 +357,10 @@ private:
    */
   bool check_focus_in_img_center_;
   /**
+   * @brief Stale frame threshold
+   */
+  double stale_frame_threshold_;
+  /**
    * @brief timestamp of capture image
    */
   rclcpp::Time timestamp_;
@@ -378,6 +396,11 @@ private:
    * @brief this stores last captured image.
    */
   cv_bridge::CvImage bridge_;
+
+  /**
+   * @brief this stores previous captured image for stale frame detection.
+   */
+  cv_bridge::CvImage previous_bridge_;
 
   /**
    * @brief this stores last captured image info.

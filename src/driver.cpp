@@ -52,6 +52,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
   param_manager_.addParameter(focus_threshold_, "focus_threshold", 100.0);
   param_manager_.addParameter(check_focus_in_img_center_, "check_focus_in_img_center", false);
+  param_manager_.addParameter(stale_frame_threshold_, "stale_frame_threshold", 0.8);
 
   // Video capture parameters
   param_manager_.addParameter(width_, "width", 640);
@@ -92,6 +93,8 @@ void Driver::parameters_setup()
     name_ + "/grab_frame", std::bind(&Driver::GrabFrameCb, this, _1, _2, _3));
   is_camera_focused_srv_ = this->create_service<std_srvs::srv::SetBool>(
     name_ + "/is_focused", std::bind(&Driver::isCameraFocusedCb, this, _1, _2, _3));
+  is_frame_stale_srv_ = this->create_service<std_srvs::srv::SetBool>(
+    name_ + "/is_frame_stale", std::bind(&Driver::isFrameStaleCb, this, _1, _2, _3));
 
 
   params_callback_handle_ =
@@ -109,6 +112,7 @@ bool Driver::setup()
                             roi_exposure_,
                             focus_threshold_,
                             check_focus_in_img_center_,
+                            stale_frame_threshold_,
                             PUBLISHER_BUFFER_SIZE));
 
   if (video_path_ != "")
@@ -433,6 +437,11 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         check_focus_in_img_center_ = parameter.as_bool();
         camera_->setCheckFocusInImgCenter(check_focus_in_img_center_);
       }
+      else if (name == "stale_frame_threshold")
+      {
+        stale_frame_threshold_ = parameter.as_double();
+        camera_->setStaleFrameThreshold(stale_frame_threshold_);
+      }
     }
   }
     return result;
@@ -573,6 +582,22 @@ void Driver::ReleaseCamCb(shared_ptr_request_id const, shared_ptr_bool_request c
     return;
   }
 }
+
+void Driver::isFrameStaleCb(shared_ptr_request_id const,  [[maybe_unused]] shared_ptr_bool_request const request,
+                            shared_ptr_bool_response response)
+{
+  if (camera_->is_empty())
+  {
+    response->success = false;
+    response->message = "Camera frame is empty";
+    return;
+  }
+
+  response->success = camera_->isFrameStale();
+  response->message = std::string("Camera frame is ") + (response->success ? "stale" : "not stale");
+  return;
+}
+
 void Driver::publish_diagnostic(Status status)
 {
   auto message = diagnostic_msgs::msg::DiagnosticArray();
