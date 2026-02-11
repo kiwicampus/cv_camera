@@ -624,6 +624,51 @@ double Capture::getLaplacianVariance()
     return variance;
 }
 
+double Capture::getBrennerScore(){
+  cv::Mat frame = bridge_.image;
+  cv::Mat gray, gray_int16, focus_measure;
+
+  if (check_focus_in_img_center_)
+  {
+    // Get the center of the image
+    frame = frame(cv::Rect(frame.cols / 4, frame.rows / 4, frame.cols / 2, frame.rows / 2));
+  }
+
+  cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+  gray.convertTo(gray_int16, CV_16S);
+
+  int height = gray_int16.rows;
+  int width = gray_int16.cols;
+
+  cv::Mat horizontal_diff = cv::Mat::zeros(height, width, CV_16S);
+  cv::Mat vertical_diff = cv::Mat::zeros(height, width, CV_16S);
+
+  // Compute horizontal differences each 2 pixels
+  for (int i = 0; i < height; i++) {
+    for(int j = 0; j < width - 2; j++) {
+      int diff = gray_int16.at<short>(i, j + 2) - gray_int16.at<short>(i, j);
+      horizontal_diff.at<short>(i, j) = std::max(0, diff);
+    }
+  }
+
+  // Compute vertical differences each 2 pixels
+  for (int i = 0; i < height - 2; i++) {
+    for(int j = 0; j < width; j++) {
+      int diff = gray_int16.at<short>(i + 2, j) - gray_int16.at<short>(i, j);
+      vertical_diff.at<short>(i, j) = std::max(0, diff);
+    }
+  }
+
+  // Compute focus measure: max(horizontal_diff, vertical_diff)^2
+  focus_measure = cv::Mat::zeros(height, width, CV_32F);
+  cv::max(horizontal_diff, vertical_diff, focus_measure);
+  cv::Scalar mean_focus = cv::mean(focus_measure);
+
+  double mean_focus_value = mean_focus[0];
+
+  return mean_focus_value;
+}
+
 bool Capture::isFrameStale()
 {
     // If previous frame is empty, this is the first frame
