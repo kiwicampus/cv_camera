@@ -595,14 +595,14 @@ bool Capture::is_empty()
 
 bool Capture::isFocused()
 {
-    // Calculate image focus using Laplacian variance method
-    // Higher variance indicates more edges/details are in focus
-    double laplacianVariance = getLaplacianVariance();
-    RCLCPP_DEBUG(node_->get_logger(), "[%s] Laplacian variance: %f", node_->get_name(), laplacianVariance);
+    // Calculate image focus using Brenner score method
+    // Higher score indicates more edges/details are in focus
+    double brennerScore = getBrennerScore();
+    RCLCPP_DEBUG(node_->get_logger(), "[%s] Brenner score: %f", node_->get_name(), brennerScore);
     RCLCPP_DEBUG(node_->get_logger(), "[%s] focus_threshold_: %f", node_->get_name(), focus_threshold_);
     
-    // Return true if variance is above threshold (image is focused)
-    return laplacianVariance >= focus_threshold_;
+    // Return true if score is above threshold (image is focused)
+    return brennerScore >= focus_threshold_;
 }
 
 double Capture::getLaplacianVariance()
