@@ -598,8 +598,8 @@ bool Capture::isFocused()
     // Calculate image focus using Brenner score method
     // Higher score indicates more edges/details are in focus
     double brennerScore = getBrennerScore();
-    RCLCPP_DEBUG(node_->get_logger(), "[%s] Brenner score: %f", node_->get_name(), brennerScore);
-    RCLCPP_DEBUG(node_->get_logger(), "[%s] focus_threshold_: %f", node_->get_name(), focus_threshold_);
+    RCLCPP_INFO(node_->get_logger(), "[%s] Brenner score: %f", node_->get_name(), brennerScore);
+    RCLCPP_INFO(node_->get_logger(), "[%s] focus_threshold_: %f", node_->get_name(), focus_threshold_);
     
     // Return true if score is above threshold (image is focused)
     return brennerScore >= focus_threshold_;
