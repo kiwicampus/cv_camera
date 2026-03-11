@@ -130,6 +130,14 @@ public:
   bool openFile(const std::string &file_path);
 
   /**
+   * @brief Open RTSP stream using GStreamer backend.
+   *
+   * @param rtsp_url RTSP URL (e.g. rtsp://host:port/stream)
+   * @return true if opened successfully
+   */
+  bool openRtsp(const std::string &rtsp_url);
+
+  /**
    * @brief Close capture device.
    * Uses release OpenCV function.
   */
@@ -392,6 +400,11 @@ private:
    * @brief video path to be streamed
    */
   std::string video_path_ = "";
+
+  /**
+   * @brief true when using RTSP (skip V4L2 property setting)
+   */
+  bool is_rtsp_ = false;
 
   /**
    * @brief capture device.

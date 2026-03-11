@@ -28,6 +28,10 @@ void Driver::parameters_setup()
   this->declare_parameter("cv_cap_prop_fourcc", 0.0);
   this->get_parameter("fourcc", fourcc_);
   // Decode fourcc as CV2 only accepts double values for its parameters
+  if (fourcc_.size() < 4) {
+    RCLCPP_WARN(get_logger(), "[%s] 'fourcc' parameter not set or incomplete, defaulting to MJPG", name_.c_str());
+    fourcc_ = {"M", "J", "P", "G"};
+  }
   this->set_parameter(rclcpp::Parameter("cv_cap_prop_fourcc", (double)cv::VideoWriter::fourcc(
                       *fourcc_[0].c_str(), *fourcc_[1].c_str(), *fourcc_[2].c_str(), *fourcc_[3].c_str())));
 
@@ -47,6 +51,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
   param_manager_.addParameter<std::string>(hd_intrinsic_file_, "hd_intrinsic_file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
+  param_manager_.addParameter<std::string>(rtsp_url_, "rtsp_url", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
@@ -115,7 +120,15 @@ bool Driver::setup()
                             stale_frame_threshold_,
                             PUBLISHER_BUFFER_SIZE));
 
-  if (video_path_ != "")
+  if (rtsp_url_ != "")
+  {
+    if (!camera_->openRtsp(rtsp_url_))
+    {
+      RCLCPP_WARN(get_logger(), "[%s] Couldn't open RTSP stream [%s]", name_.c_str(), rtsp_url_.c_str());
+      return false;
+    }
+  }
+  else if (video_path_ != "")
   {
     camera_->openFile(video_path_);
   }
@@ -136,24 +149,26 @@ bool Driver::setup()
     }
   }
 
-  camera_->setPropertyFromParam(cv::CAP_PROP_POS_MSEC, "cv_cap_prop_pos_msec");
-  camera_->setPropertyFromParam(cv::CAP_PROP_POS_AVI_RATIO, "cv_cap_prop_pos_avi_ratio");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "cv_cap_prop_frame_width");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "cv_cap_prop_frame_height");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FPS, "cv_cap_prop_fps");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FOURCC, "cv_cap_prop_fourcc");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_COUNT, "cv_cap_prop_frame_count");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FORMAT, "cv_cap_prop_format");
-  camera_->setPropertyFromParam(cv::CAP_PROP_MODE, "cv_cap_prop_mode");
-  camera_->setPropertyFromParam(cv::CAP_PROP_BRIGHTNESS, "cv_cap_prop_brightness");
-  camera_->setPropertyFromParam(cv::CAP_PROP_CONTRAST, "cv_cap_prop_contrast");
-  camera_->setPropertyFromParam(cv::CAP_PROP_SATURATION, "cv_cap_prop_saturation");
-  camera_->setPropertyFromParam(cv::CAP_PROP_HUE, "cv_cap_prop_hue");
-  camera_->setPropertyFromParam(cv::CAP_PROP_GAIN, "cv_cap_prop_gain");
-  camera_->setPropertyFromParam(cv::CAP_PROP_EXPOSURE, "cv_cap_prop_exposure");
-  camera_->setPropertyFromParam(cv::CAP_PROP_CONVERT_RGB, "cv_cap_prop_convert_rgb");
-  camera_->setPropertyFromParam(cv::CAP_PROP_RECTIFICATION, "cv_cap_prop_rectification");
-  camera_->setPropertyFromParam(cv::CAP_PROP_ISO_SPEED, "cv_cap_prop_iso_speed");
+  if (rtsp_url_ == "")
+  {
+    camera_->setPropertyFromParam(cv::CAP_PROP_POS_MSEC, "cv_cap_prop_pos_msec");
+    camera_->setPropertyFromParam(cv::CAP_PROP_POS_AVI_RATIO, "cv_cap_prop_pos_avi_ratio");
+    camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "cv_cap_prop_frame_width");
+    camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "cv_cap_prop_frame_height");
+    camera_->setPropertyFromParam(cv::CAP_PROP_FPS, "cv_cap_prop_fps");
+    camera_->setPropertyFromParam(cv::CAP_PROP_FOURCC, "cv_cap_prop_fourcc");
+    camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_COUNT, "cv_cap_prop_frame_count");
+    camera_->setPropertyFromParam(cv::CAP_PROP_FORMAT, "cv_cap_prop_format");
+    camera_->setPropertyFromParam(cv::CAP_PROP_MODE, "cv_cap_prop_mode");
+    camera_->setPropertyFromParam(cv::CAP_PROP_BRIGHTNESS, "cv_cap_prop_brightness");
+    camera_->setPropertyFromParam(cv::CAP_PROP_CONTRAST, "cv_cap_prop_contrast");
+    camera_->setPropertyFromParam(cv::CAP_PROP_SATURATION, "cv_cap_prop_saturation");
+    camera_->setPropertyFromParam(cv::CAP_PROP_HUE, "cv_cap_prop_hue");
+    camera_->setPropertyFromParam(cv::CAP_PROP_GAIN, "cv_cap_prop_gain");
+    camera_->setPropertyFromParam(cv::CAP_PROP_EXPOSURE, "cv_cap_prop_exposure");
+    camera_->setPropertyFromParam(cv::CAP_PROP_CONVERT_RGB, "cv_cap_prop_convert_rgb");
+    camera_->setPropertyFromParam(cv::CAP_PROP_RECTIFICATION, "cv_cap_prop_rectification");
+    camera_->setPropertyFromParam(cv::CAP_PROP_ISO_SPEED, "cv_cap_prop_iso_speed");
 #ifdef CV_CAP_PROP_WHITE_BALANCE_U
     camera_->setPropertyFromParam(cv::CAP_PROP_WHITE_BALANCE_U, "cv_cap_prop_white_balance_u");
 #endif  // CV_CAP_PROP_WHITE_BALANCE_U
@@ -163,6 +178,7 @@ bool Driver::setup()
 #ifdef CV_CAP_PROP_BUFFERSIZE
     camera_->setPropertyFromParam(cv::CAP_PROP_BUFFERSIZE, "cv_cap_prop_buffersize");
 #endif  // CV_CAP_PROP_BUFFERSIZE
+  }
 
   // Timers
   read_tmr_ =
@@ -264,7 +280,7 @@ void Driver::attempt_reconnection()
   {
     RCLCPP_WARN(get_logger(), "[%s] Reconnecting... attempt %d/%d", name_.c_str(), reconnection_attempts_ + 1,
                 video_stream_recovery_tries_);
-    if (camera_->open(port_))
+    if (rtsp_url_ != "" ? camera_->openRtsp(rtsp_url_) : camera_->open(port_))
     {
       if (camera_->grab() && camera_->capture(flip_vertical_, flip_horizontal_))
       {
@@ -344,36 +360,36 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         publish_tmr_ = this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / publish_rate_)),
                                                std::bind(&Driver::proceed, this));
       }
-      else if (name == "cv_cap_prop_frame_width" || name == "cv_cap_prop_frame_height")
+      else if (rtsp_url_ == "" && (name == "cv_cap_prop_frame_width" || name == "cv_cap_prop_frame_height"))
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "cv_cap_prop_frame_width");
         camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "cv_cap_prop_frame_height");
       }
-      else if (name == "cv_cap_prop_brightness")
+      else if (rtsp_url_ == "" && name == "cv_cap_prop_brightness")
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_BRIGHTNESS, "cv_cap_prop_brightness");
       }
-      else if (name == "cv_cap_prop_contrast")
+      else if (rtsp_url_ == "" && name == "cv_cap_prop_contrast")
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_CONTRAST, "cv_cap_prop_contrast");
       }
-      else if (name == "cv_cap_prop_saturation")
+      else if (rtsp_url_ == "" && name == "cv_cap_prop_saturation")
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_SATURATION, "cv_cap_prop_saturation");
       }
-      else if (name == "cv_cap_prop_hue")
+      else if (rtsp_url_ == "" && name == "cv_cap_prop_hue")
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_HUE, "cv_cap_prop_hue");
       }
-      else if (name == "cv_cap_prop_gain")
+      else if (rtsp_url_ == "" && name == "cv_cap_prop_gain")
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_GAIN, "cv_cap_prop_gain");
       }
-      else if (name == "cv_cap_prop_exposure")
+      else if (rtsp_url_ == "" && name == "cv_cap_prop_exposure")
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_EXPOSURE, "cv_cap_prop_exposure");
       }
-      else if (name == "cv_cap_prop_auto_exposure")
+      else if (rtsp_url_ == "" && name == "cv_cap_prop_auto_exposure")
       {
         camera_->setPropertyFromParam(cv::CAP_PROP_AUTO_EXPOSURE, "cv_cap_prop_auto_exposure");
       }
@@ -385,7 +401,7 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
     }
     else if (type == rclcpp::ParameterType::PARAMETER_INTEGER)
     {
-      if (name == "width")
+      if (rtsp_url_ == "" && name == "width")
       {
         width_ = parameter.as_int();
         // update height to maintain aspect ratio
@@ -395,7 +411,7 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         // so we need to reset the timer to update the resolution
         update_resolution_tmr_->reset();
       }
-      else if (name == "height")
+      else if (rtsp_url_ == "" && name == "height")
       {
         height_ = parameter.as_int();
         // update width to maintain aspect ratio
@@ -460,6 +476,8 @@ void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_reque
 void Driver::update_resolution()
 {
   update_resolution_tmr_->cancel();
+  if (rtsp_url_ != "")
+    return;
   if (width_ != camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH) || width_ != (int)camera_->getInfo().width)
   {
     this->set_parameter(rclcpp::Parameter("cv_cap_prop_frame_width", (double)width_));

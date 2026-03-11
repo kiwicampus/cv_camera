@@ -1,8 +1,11 @@
 // Copyright [2015] Takashi Ogura<t.ogura@gmail.com>
 
 #include "cv_camera/capture.h"
+#include <chrono>
+#include <cstdlib>
 #include <sstream>
 #include <string>
+#include <thread>
 
 namespace cv_camera
 {
@@ -36,6 +39,8 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
 
 void Capture::loadCameraInfo()
 {
+  if (is_rtsp_)
+    return;
   std::string url;
   if (node_->get_parameter("intrinsic_file", url))
   {
@@ -76,7 +81,6 @@ void Capture::loadCameraInfo()
 
   rescale_camera_info_ = false;
   node_->get_parameter_or("rescale_camera_info", rescale_camera_info_, rescale_camera_info_);
-
 
   for (int i = 0;; ++i)
   {
@@ -231,8 +235,59 @@ bool Capture::openFile(const std::string &file_path)
     RCLCPP_ERROR(node_->get_logger(), "Unable to open file %s.", file_path.c_str());
     return false;
   }
-  
+
   video_path_ = file_path;
+  loadCameraInfo();
+  return true;
+}
+
+bool Capture::openRtsp(const std::string &rtsp_url)
+{
+  is_rtsp_ = true;
+  // GLib (used by GStreamer's rtspsrc) respects HTTP_PROXY/ALL_PROXY env vars and will
+  // try to tunnel RTSP through an HTTP CONNECT proxy, which fails for plain RTSP TCP.
+  // Unset them so GStreamer connects directly.
+  unsetenv("HTTP_PROXY");
+  unsetenv("HTTPS_PROXY");
+  unsetenv("ALL_PROXY");
+  unsetenv("http_proxy");
+  unsetenv("https_proxy");
+  unsetenv("all_proxy");
+
+  // GStreamer pipeline for RTSP:
+  //   rtspsrc protocols=tcp  → force TCP (avoids UDP NAT issues)
+  //   latency=200            → small buffer for initial connection stability
+  //   decodebin              → auto-selects decoder (H.264/H.265/etc.)
+  //   appsink sync=false drop=true max-buffers=1 → low latency, always fresh frame
+  std::string pipeline = "rtspsrc location=\"" + rtsp_url +
+                         "\" protocols=tcp latency=0 ! decodebin ! videoconvert !"
+                         " video/x-raw,format=BGR !"
+                         " appsink sync=false drop=true max-buffers=1";
+
+  const int max_retries = 3;
+  for (int attempt = 0; attempt < max_retries; ++attempt)
+  {
+    cap_.open(pipeline, cv::CAP_GSTREAMER);
+    if (cap_.isOpened())
+    {
+      cv::Mat probe;
+      if (cap_.read(probe) && !probe.empty())
+        break;
+      cap_.release();
+    }
+    if (attempt < max_retries - 1)
+    {
+      RCLCPP_WARN(node_->get_logger(), "[%s] RTSP open attempt %d failed, retrying in 2s...", node_->get_name(), attempt + 1);
+      std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
+  }
+
+  if (!cap_.isOpened())
+  {
+    RCLCPP_ERROR(node_->get_logger(), "[%s] Unable to open RTSP stream: %s", node_->get_name(), rtsp_url.c_str());
+    return false;
+  }
+
   loadCameraInfo();
   return true;
 }

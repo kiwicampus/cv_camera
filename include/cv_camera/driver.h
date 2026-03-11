@@ -235,6 +235,10 @@ class Driver : public rclcpp::Node
   */
   std::string video_path_;
   /**
+   * @brief RTSP stream URL for GStreamer backend
+  */
+  std::string rtsp_url_;
+  /**
    * @brief Camera info topic
   */
   std::string cam_info_topic_;
