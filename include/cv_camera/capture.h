@@ -301,6 +301,12 @@ private:
   double getLaplacianVariance();
 
   /**
+  * @brief Get Brenner score of last captured image
+  * @return Brenner score value
+  */
+  double getBrennerScore();
+  
+  /**
    * @brief Select appropiate encoding for the image
    */
   std::string mat_type2encoding(int mat_type);
