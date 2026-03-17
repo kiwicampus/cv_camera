@@ -229,7 +229,7 @@ class Driver : public rclcpp::Node
   /**
    * @brief Reconnection routine
   */
-  bool reconnection_routine_ = !getEnv("VISION_MONITOR_USB_CAMS", true);
+  bool reconnection_routine_ = true;
   /**
    * @brief Video path
   */
