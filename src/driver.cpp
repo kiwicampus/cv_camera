@@ -52,6 +52,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter<std::string>(hd_intrinsic_file_, "hd_intrinsic_file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
   param_manager_.addParameter<std::string>(rtsp_url_, "rtsp_url", "");
+  param_manager_.addParameter<std::string>(gstreamer_pipeline_, "gstreamer_pipeline", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
@@ -120,9 +121,11 @@ bool Driver::setup()
                             stale_frame_threshold_,
                             PUBLISHER_BUFFER_SIZE));
 
+  camera_->setCustomPipeline(gstreamer_pipeline_);
+
   if (rtsp_url_ != "")
   {
-    if (!camera_->openRtsp(rtsp_url_))
+    if (!camera_->openRtsp(rtsp_url_, width_, height_, static_cast<int>(read_rate_)))
     {
       RCLCPP_WARN(get_logger(), "[%s] Couldn't open RTSP stream [%s]", name_.c_str(), rtsp_url_.c_str());
       return false;
@@ -280,7 +283,7 @@ void Driver::attempt_reconnection()
   {
     RCLCPP_WARN(get_logger(), "[%s] Reconnecting... attempt %d/%d", name_.c_str(), reconnection_attempts_ + 1,
                 video_stream_recovery_tries_);
-    if (rtsp_url_ != "" ? camera_->openRtsp(rtsp_url_) : camera_->open(port_))
+    if (rtsp_url_ != "" ? camera_->openRtsp(rtsp_url_, width_, height_, static_cast<int>(read_rate_)) : camera_->open(port_))
     {
       if (camera_->grab() && camera_->capture(flip_vertical_, flip_horizontal_))
       {
@@ -427,6 +430,13 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       if (name == "intrinsic_file" || name == "hd_intrinsic_file")
       {
         camera_->loadCameraInfo();
+      }
+      else if (name == "gstreamer_pipeline")
+      {
+        gstreamer_pipeline_ = parameter.as_string();
+        camera_->setCustomPipeline(gstreamer_pipeline_);
+        camera_->release();
+        RCLCPP_INFO(get_logger(), "[%s] gstreamer_pipeline updated — reconnecting...", name_.c_str());
       }
     }
     else if (type == rclcpp::ParameterType::PARAMETER_BOOL)

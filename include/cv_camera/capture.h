@@ -135,13 +135,23 @@ public:
    * @param rtsp_url RTSP URL (e.g. rtsp://host:port/stream)
    * @return true if opened successfully
    */
-  bool openRtsp(const std::string &rtsp_url);
+  bool openRtsp(const std::string &rtsp_url, int width = -1, int height = -1, int fps = -1);
 
   /**
    * @brief Close capture device.
    * Uses release OpenCV function.
   */
   void close();
+
+  /**
+   * @brief Release the underlying VideoCapture to force a reconnect.
+   */
+  void release() { cap_.release(); }
+
+  /**
+   * @brief Set custom GStreamer pipeline string (empty = auto-build).
+   */
+  void setCustomPipeline(const std::string &pipeline) { custom_pipeline_ = pipeline; }
 
   /**
    * @brief Checks if capture device is opened
@@ -289,6 +299,7 @@ public:
    * @brief initialize undistort rectify map
    */
   void initUndistortRectifyMap();
+
   /**
    * @brief Check if the image is empty
    * @return True if image is empty, false otherwise
@@ -405,6 +416,12 @@ private:
    * @brief true when using RTSP (skip V4L2 property setting)
    */
   bool is_rtsp_ = false;
+
+  /**
+   * @brief Custom GStreamer pipeline string. When non-empty, passed directly to
+   *        cv::VideoCapture instead of the auto-built pipeline in openRtsp().
+   */
+  std::string custom_pipeline_;
 
   /**
    * @brief capture device.

@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <unistd.h>
 
 namespace cv_camera
 {
@@ -241,7 +242,7 @@ bool Capture::openFile(const std::string &file_path)
   return true;
 }
 
-bool Capture::openRtsp(const std::string &rtsp_url)
+bool Capture::openRtsp(const std::string &rtsp_url, int width, int height, int fps)
 {
   is_rtsp_ = true;
   // GLib (used by GStreamer's rtspsrc) respects HTTP_PROXY/ALL_PROXY env vars and will
@@ -254,15 +255,61 @@ bool Capture::openRtsp(const std::string &rtsp_url)
   unsetenv("https_proxy");
   unsetenv("all_proxy");
 
-  // GStreamer pipeline for RTSP:
-  //   rtspsrc protocols=tcp  → force TCP (avoids UDP NAT issues)
-  //   latency=200            → small buffer for initial connection stability
-  //   decodebin              → auto-selects decoder (H.264/H.265/etc.)
-  //   appsink sync=false drop=true max-buffers=1 → low latency, always fresh frame
-  std::string pipeline = "rtspsrc location=\"" + rtsp_url +
-                         "\" protocols=tcp latency=0 ! decodebin ! videoconvert !"
-                         " video/x-raw,format=BGR !"
-                         " appsink sync=false drop=true max-buffers=1";
+  std::string pipeline;
+  std::string error_context;
+
+  // If a custom pipeline was set via ROS parameter, use it directly.
+  if (!custom_pipeline_.empty())
+  {
+    pipeline = custom_pipeline_;
+    error_context = "custom pipeline";
+    RCLCPP_INFO(node_->get_logger(), "[%s] RTSP pipeline (custom): %s",
+                node_->get_name(), pipeline.c_str());
+  }
+  else
+  {
+    // Use nvvidconv (Tegra hardware) when available, otherwise fall back to plain videoconvert.
+    // nvvidconv lives in /usr/lib/aarch64-linux-gnu/tegra — check that path to detect Jetson.
+    const bool has_nvvidconv = (access("/usr/lib/aarch64-linux-gnu/tegra", F_OK) == 0);
+    const bool do_resize = (width > 0 && height > 0);
+    const bool do_fps = (fps > 0);
+
+    std::string size_caps = do_resize
+      ? ",width=" + std::to_string(width) + ",height=" + std::to_string(height)
+      : "";
+    std::string fps_filter = do_fps
+      ? " ! videorate drop-only=true ! video/x-raw,framerate=" + std::to_string(fps) + "/1"
+      : "";
+
+    if (has_nvvidconv)
+    {
+      // Jetson: decodebin picks nvv4l2decoder; nvvidconv handles resize+convert in hardware
+      pipeline = "rtspsrc location=\"" + rtsp_url +
+                 "\" protocols=tcp latency=0 buffer-mode=0 do-retransmission=false drop-on-latency=true"
+                 " ! decodebin"
+                 " ! queue max-size-buffers=1 max-size-bytes=0 max-size-time=0 leaky=downstream"
+                 " ! nvvidconv"
+                 " ! video/x-raw,format=BGRx" + size_caps +
+                 fps_filter +
+                 " ! videoconvert ! video/x-raw,format=BGR"
+                 " ! appsink sync=false drop=true max-buffers=1";
+    }
+    else
+    {
+      // x86 / dev machine: software decode + convert
+      pipeline = "rtspsrc location=\"" + rtsp_url +
+                 "\" protocols=tcp latency=0 buffer-mode=0 do-retransmission=false drop-on-latency=true"
+                 " ! decodebin"
+                 " ! queue max-size-buffers=1 max-size-bytes=0 max-size-time=0 leaky=downstream"
+                 " ! videoscale ! video/x-raw" + size_caps +
+                 fps_filter +
+                 " ! videoconvert ! video/x-raw,format=BGR"
+                 " ! appsink sync=false drop=true max-buffers=1";
+    }
+    error_context = "RTSP stream: " + rtsp_url;
+    RCLCPP_INFO(node_->get_logger(), "[%s] RTSP pipeline (%s): %s",
+                node_->get_name(), has_nvvidconv ? "Jetson/nvvidconv" : "software", pipeline.c_str());
+  }
 
   const int max_retries = 3;
   for (int attempt = 0; attempt < max_retries; ++attempt)
@@ -284,7 +331,7 @@ bool Capture::openRtsp(const std::string &rtsp_url)
 
   if (!cap_.isOpened())
   {
-    RCLCPP_ERROR(node_->get_logger(), "[%s] Unable to open RTSP stream: %s", node_->get_name(), rtsp_url.c_str());
+    RCLCPP_ERROR(node_->get_logger(), "[%s] Unable to open %s", node_->get_name(), error_context.c_str());
     return false;
   }
 
