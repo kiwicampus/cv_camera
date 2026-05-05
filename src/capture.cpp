@@ -31,6 +31,13 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
     m_pub_camera_info_ptr = node->create_publisher<sensor_msgs::msg::CameraInfo>(cam_info_topic_name_, rclcpp::QoS(rclcpp::SensorDataQoS()));
     node_->get_parameter_or("capture_delay", dur, dur);
     this->capture_delay_ = rclcpp::Duration(dur, 0.0);
+
+    node_->get_parameter_or("vri_focus_id", vri_focus_id_, std::string(""));
+    if (!vri_focus_id_.empty())
+    {
+        vri_client_ = std::make_unique<ServiceClient<visual_reasoning_msgs::srv::ProcessRequests>>(
+            "/vri/process_requests", node_);
+    }
 }
 
 
@@ -595,78 +602,41 @@ bool Capture::is_empty()
 
 bool Capture::isFocused()
 {
-    // Calculate image focus using Brenner score method
-    // Higher score indicates more edges/details are in focus
-    double brennerScore = getBrennerScore();
-    RCLCPP_INFO(node_->get_logger(), "[%s] Brenner score: %f", node_->get_name(), brennerScore);
-    RCLCPP_INFO(node_->get_logger(), "[%s] focus_threshold_: %f", node_->get_name(), focus_threshold_);
-    
-    // Return true if score is above threshold (image is focused)
-    return brennerScore >= focus_threshold_;
-}
-
-double Capture::getLaplacianVariance()
-{
-    cv::Mat frame = bridge_.image;
-    if (check_focus_in_img_center_)
+    if (!vri_client_ || vri_focus_id_.empty())
     {
-      // Get the center of the image
-      frame = frame(cv::Rect(frame.cols / 4, frame.rows / 4, frame.cols / 2, frame.rows / 2));
+        RCLCPP_WARN(node_->get_logger(), "VRI focus check not configured (vri_focus_id param not set)");
+        return false;
     }
-    cv::Mat gray, laplacian;
-    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);  // Convert to grayscale
-    cv::Laplacian(gray, laplacian, CV_64F);         // Apply Laplacian filter
 
-    cv::Scalar mean, stddev;
-    cv::meanStdDev(laplacian, mean, stddev);
-
-    double variance = stddev[0] * stddev[0];
-    return variance;
-}
-
-double Capture::getBrennerScore(){
-  cv::Mat frame = bridge_.image;
-  cv::Mat gray, gray_int16, focus_measure;
-
-  if (check_focus_in_img_center_)
-  {
-    // Get the center of the image
-    frame = frame(cv::Rect(frame.cols / 4, frame.rows / 4, frame.cols / 2, frame.rows / 2));
-  }
-
-  cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-  gray.convertTo(gray_int16, CV_16S);
-
-  int height = gray_int16.rows;
-  int width = gray_int16.cols;
-
-  cv::Mat horizontal_diff = cv::Mat::zeros(height, width, CV_16S);
-  cv::Mat vertical_diff = cv::Mat::zeros(height, width, CV_16S);
-
-  // Compute horizontal differences each 2 pixels
-  for (int i = 0; i < height; i++) {
-    for(int j = 0; j < width - 2; j++) {
-      int diff = gray_int16.at<short>(i, j + 2) - gray_int16.at<short>(i, j);
-      horizontal_diff.at<short>(i, j) = std::max(0, diff);
+    if (!vri_client_->service_is_ready())
+    {
+        RCLCPP_WARN(node_->get_logger(), "VRI service not available");
+        return false;
     }
-  }
 
-  // Compute vertical differences each 2 pixels
-  for (int i = 0; i < height - 2; i++) {
-    for(int j = 0; j < width; j++) {
-      int diff = gray_int16.at<short>(i + 2, j) - gray_int16.at<short>(i, j);
-      vertical_diff.at<short>(i, j) = std::max(0, diff);
+    auto request = std::make_shared<visual_reasoning_msgs::srv::ProcessRequests::Request>();
+    visual_reasoning_msgs::msg::VRIRequest vri_req;
+    vri_req.id = vri_focus_id_;
+    vri_req.cameras = {std::string(node_->get_name())};
+    request->requests = {vri_req};
+    request->triggered_by = "cv_camera";
+    request->report_results = false;
+
+    try
+    {
+        auto response = vri_client_->invoke(request, std::chrono::seconds(10));
+        if (!response->success || response->results.empty())
+        {
+            RCLCPP_WARN(node_->get_logger(), "VRI focus check failed: %s", response->message.c_str());
+            return false;
+        }
+        return response->results[0].result;
     }
-  }
-
-  // Compute focus measure: max(horizontal_diff, vertical_diff)^2
-  focus_measure = cv::Mat::zeros(height, width, CV_32F);
-  cv::max(horizontal_diff, vertical_diff, focus_measure);
-  cv::Scalar mean_focus = cv::mean(focus_measure);
-
-  double mean_focus_value = mean_focus[0];
-
-  return mean_focus_value;
+    catch (const std::exception & e)
+    {
+        RCLCPP_ERROR(node_->get_logger(), "VRI focus check exception: %s", e.what());
+        return false;
+    }
 }
 
 bool Capture::isFrameStale()

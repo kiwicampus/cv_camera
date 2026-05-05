@@ -25,6 +25,9 @@
 #include "utils/console.hpp"
 #include "utils/parameters.hpp"
 #include "utils/string_utils.hpp"
+#include "utils/sync_service_client.hpp"
+#include "visual_reasoning_msgs/srv/process_requests.hpp"
+#include "visual_reasoning_msgs/msg/vri_request.hpp"
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -442,6 +445,17 @@ private:
    * @brief Final publisher for camera info messages
    */
   rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr m_pub_camera_info_ptr;
+
+  /**
+   * @brief VRI workflow ID used for focus detection (param: vri_focus_id).
+   *        Leave empty to disable VRI-based focus check.
+   */
+  std::string vri_focus_id_;
+
+  /**
+   * @brief Synchronous client for the /vri/process_requests service.
+   */
+  std::unique_ptr<ServiceClient<visual_reasoning_msgs::srv::ProcessRequests>> vri_client_;
 
 };
 
