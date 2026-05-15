@@ -265,7 +265,7 @@ class Driver : public rclcpp::Node
      5 -> Paused
      6 -> Turned of
   */
-  std::shared_ptr<std_msgs::msg::UInt8> cam_status_;
+  std::shared_ptr<std_msgs::msg::UInt8> cam_status_ = std::make_shared<std_msgs::msg::UInt8>();
 
   // video capture parameters
   /**
