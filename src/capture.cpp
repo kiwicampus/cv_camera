@@ -237,6 +237,19 @@ bool Capture::openFile(const std::string &file_path)
   return true;
 }
 
+bool Capture::openGstreamer(const std::string &pipeline)
+{
+  RCLCPP_INFO(node_->get_logger(), "[%s] Opening GStreamer pipeline: %s", node_->get_name(), pipeline.c_str());
+  cap_.open(pipeline, cv::CAP_GSTREAMER);
+  if (!cap_.isOpened())
+  {
+    RCLCPP_ERROR(node_->get_logger(), "[%s] Failed to open GStreamer pipeline", node_->get_name());
+    return false;
+  }
+  loadCameraInfo();
+  return true;
+}
+
 bool Capture::grab()
 {
   // Restart the video when it ends when video playback mode

@@ -47,6 +47,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter<std::string>(intrinsic_file_, "intrinsic_file", "");
   param_manager_.addParameter<std::string>(hd_intrinsic_file_, "hd_intrinsic_file", "");
   param_manager_.addParameter<std::string>(video_path_, "video_path", "");
+  param_manager_.addParameter<std::string>(gstreamer_pipeline_, "gstreamer_pipeline", "");
   param_manager_.addParameter<std::string>(frame_id_, "frame_id", "camera_id");
   param_manager_.addParameter(video_stream_recovery_time_, "video_stream_recovery_time", 2);
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
@@ -115,7 +116,15 @@ bool Driver::setup()
                             stale_frame_threshold_,
                             PUBLISHER_BUFFER_SIZE));
 
-  if (video_path_ != "")
+  if (!gstreamer_pipeline_.empty())
+  {
+    if (!camera_->openGstreamer(gstreamer_pipeline_))
+    {
+      RCLCPP_WARN(get_logger(), "[%s] Couldn't open GStreamer pipeline [%s]", name_.c_str(), gstreamer_pipeline_.c_str());
+      return false;
+    }
+  }
+  else if (video_path_ != "")
   {
     camera_->openFile(video_path_);
   }
@@ -136,24 +145,26 @@ bool Driver::setup()
     }
   }
 
-  camera_->setPropertyFromParam(cv::CAP_PROP_POS_MSEC, "cv_cap_prop_pos_msec");
-  camera_->setPropertyFromParam(cv::CAP_PROP_POS_AVI_RATIO, "cv_cap_prop_pos_avi_ratio");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "cv_cap_prop_frame_width");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "cv_cap_prop_frame_height");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FPS, "cv_cap_prop_fps");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FOURCC, "cv_cap_prop_fourcc");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_COUNT, "cv_cap_prop_frame_count");
-  camera_->setPropertyFromParam(cv::CAP_PROP_FORMAT, "cv_cap_prop_format");
-  camera_->setPropertyFromParam(cv::CAP_PROP_MODE, "cv_cap_prop_mode");
-  camera_->setPropertyFromParam(cv::CAP_PROP_BRIGHTNESS, "cv_cap_prop_brightness");
-  camera_->setPropertyFromParam(cv::CAP_PROP_CONTRAST, "cv_cap_prop_contrast");
-  camera_->setPropertyFromParam(cv::CAP_PROP_SATURATION, "cv_cap_prop_saturation");
-  camera_->setPropertyFromParam(cv::CAP_PROP_HUE, "cv_cap_prop_hue");
-  camera_->setPropertyFromParam(cv::CAP_PROP_GAIN, "cv_cap_prop_gain");
-  camera_->setPropertyFromParam(cv::CAP_PROP_EXPOSURE, "cv_cap_prop_exposure");
-  camera_->setPropertyFromParam(cv::CAP_PROP_CONVERT_RGB, "cv_cap_prop_convert_rgb");
-  camera_->setPropertyFromParam(cv::CAP_PROP_RECTIFICATION, "cv_cap_prop_rectification");
-  camera_->setPropertyFromParam(cv::CAP_PROP_ISO_SPEED, "cv_cap_prop_iso_speed");
+  if (gstreamer_pipeline_.empty())
+  {
+    camera_->setPropertyFromParam(cv::CAP_PROP_POS_MSEC, "cv_cap_prop_pos_msec");
+    camera_->setPropertyFromParam(cv::CAP_PROP_POS_AVI_RATIO, "cv_cap_prop_pos_avi_ratio");
+    camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_WIDTH, "cv_cap_prop_frame_width");
+    camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_HEIGHT, "cv_cap_prop_frame_height");
+    camera_->setPropertyFromParam(cv::CAP_PROP_FPS, "cv_cap_prop_fps");
+    camera_->setPropertyFromParam(cv::CAP_PROP_FOURCC, "cv_cap_prop_fourcc");
+    camera_->setPropertyFromParam(cv::CAP_PROP_FRAME_COUNT, "cv_cap_prop_frame_count");
+    camera_->setPropertyFromParam(cv::CAP_PROP_FORMAT, "cv_cap_prop_format");
+    camera_->setPropertyFromParam(cv::CAP_PROP_MODE, "cv_cap_prop_mode");
+    camera_->setPropertyFromParam(cv::CAP_PROP_BRIGHTNESS, "cv_cap_prop_brightness");
+    camera_->setPropertyFromParam(cv::CAP_PROP_CONTRAST, "cv_cap_prop_contrast");
+    camera_->setPropertyFromParam(cv::CAP_PROP_SATURATION, "cv_cap_prop_saturation");
+    camera_->setPropertyFromParam(cv::CAP_PROP_HUE, "cv_cap_prop_hue");
+    camera_->setPropertyFromParam(cv::CAP_PROP_GAIN, "cv_cap_prop_gain");
+    camera_->setPropertyFromParam(cv::CAP_PROP_EXPOSURE, "cv_cap_prop_exposure");
+    camera_->setPropertyFromParam(cv::CAP_PROP_CONVERT_RGB, "cv_cap_prop_convert_rgb");
+    camera_->setPropertyFromParam(cv::CAP_PROP_RECTIFICATION, "cv_cap_prop_rectification");
+    camera_->setPropertyFromParam(cv::CAP_PROP_ISO_SPEED, "cv_cap_prop_iso_speed");
 #ifdef CV_CAP_PROP_WHITE_BALANCE_U
     camera_->setPropertyFromParam(cv::CAP_PROP_WHITE_BALANCE_U, "cv_cap_prop_white_balance_u");
 #endif  // CV_CAP_PROP_WHITE_BALANCE_U
@@ -163,6 +174,7 @@ bool Driver::setup()
 #ifdef CV_CAP_PROP_BUFFERSIZE
     camera_->setPropertyFromParam(cv::CAP_PROP_BUFFERSIZE, "cv_cap_prop_buffersize");
 #endif  // CV_CAP_PROP_BUFFERSIZE
+  }
 
   // Timers
   read_tmr_ =
@@ -264,7 +276,10 @@ void Driver::attempt_reconnection()
   {
     RCLCPP_WARN(get_logger(), "[%s] Reconnecting... attempt %d/%d", name_.c_str(), reconnection_attempts_ + 1,
                 video_stream_recovery_tries_);
-    if (camera_->open(port_))
+    bool opened = !gstreamer_pipeline_.empty()
+      ? camera_->openGstreamer(gstreamer_pipeline_)
+      : camera_->open(port_);
+    if (opened)
     {
       if (camera_->grab() && camera_->capture(flip_vertical_, flip_horizontal_))
       {

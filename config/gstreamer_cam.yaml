@@ -1,0 +1,24 @@
+cv_camera:
+  ros__parameters:
+    fourcc: [M, J, P, G]
+    gstreamer_pipeline: "v4l2src device=/dev/video2 ! image/jpeg,width=640,height=360,framerate=30/1 ! jpegdec ! appsink drop=1"
+    frame_id: camera
+    publish_rate: 30.0
+    read_rate: 30.0
+    flip_vertical: false
+    flip_horizontal: false
+    roi_exposure: false
+    rectify: false
+    always_rectify: false
+    always_publish: true
+    video_stream_recovery_time: 3
+    video_stream_recovery_tries: 10
+    focus_threshold: 100.0
+    stale_frame_threshold: 0.8
+    check_focus_in_img_center: false
+    width: 640
+    height: 360
+    intrinsic_file: ""
+    hd_intrinsic_file: ""
+    video_path: ""
+    device_id: 2

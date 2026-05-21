@@ -130,6 +130,13 @@ public:
   bool openFile(const std::string &file_path);
 
   /**
+   * @brief Open a GStreamer pipeline via CAP_GSTREAMER.
+   * @param pipeline full pipeline string ending with appsink
+   * @return true if opened successfully
+   */
+  bool openGstreamer(const std::string &pipeline);
+
+  /**
    * @brief Close capture device.
    * Uses release OpenCV function.
   */
