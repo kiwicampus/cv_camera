@@ -173,7 +173,6 @@ bool Driver::setup()
     this->create_wall_timer(std::chrono::milliseconds(200), std::bind(&Driver::update_resolution, this));
   update_resolution_tmr_->cancel();
 
-  cam_status_ = std::make_shared<std_msgs::msg::UInt8>();
   cam_status_->data = ONLINE;
   pub_cam_status_->publish(*cam_status_);
   publish_diagnostic(ONLINE);
@@ -529,6 +528,16 @@ void Driver::isCameraFocusedCb(shared_ptr_request_id const, [[maybe_unused]] sha
 void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request const request,
                             shared_ptr_bool_response response)
 {
+  // Early return if the camera did not initialize properly because it failed to open the virtual device or some other shit
+  // this prevent a segfault when trying to pause a camera that is not properly initialized
+  if (!read_tmr_ || !publish_tmr_)
+  {
+    response->success = false;
+    response->message = "Camera timers not initialized, cannot pause or resume";
+    return;
+  }
+
+
   if (request->data && !always_publish_)
   {
     read_tmr_->cancel();
