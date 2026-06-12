@@ -85,6 +85,8 @@ void Driver::parameters_setup()
   // Services
   restart_srv_ = this->create_service<std_srvs::srv::Trigger>(
     name_ + "/restart", std::bind(&Driver::RestartNodeCb, this, _1, _2, _3));
+  reload_config_srv_ = this->create_service<std_srvs::srv::Trigger>(
+    name_ + "/reload_config", std::bind(&Driver::ReloadConfigCb, this, _1, _2, _3));
   pause_img_srv_ = this->create_service<std_srvs::srv::SetBool>(
     name_ + "/pause_img_pub", std::bind(&Driver::PauseImageCb, this, _1, _2, _3));
   release_cam_srv_ = this->create_service<std_srvs::srv::SetBool>(
@@ -454,6 +456,15 @@ void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_reque
   setup();
   response->success = true;
   response->message = "Camera setup will be restarted";
+}
+
+void Driver::ReloadConfigCb(shared_ptr_request_id const, shared_ptr_trigger_request const,
+                             shared_ptr_trigger_response response)
+{
+  RCLCPP_INFO(get_logger(), "[%s] Reloading calibration files...", name_.c_str());
+  camera_->loadCameraInfo();
+  response->success = true;
+  response->message = "Calibration files reloaded";
 }
 
 void Driver::update_resolution()

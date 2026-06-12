@@ -81,6 +81,8 @@ class Driver : public rclcpp::Node
   */
   void RestartNodeCb(shared_ptr_request_id const request_header, shared_ptr_trigger_request const request,
                      shared_ptr_trigger_response response);
+  void ReloadConfigCb(shared_ptr_request_id const request_header, shared_ptr_trigger_request const request,
+                      shared_ptr_trigger_response response);
 
   /**
    * @brief Update resolution of the camera when parameter is updated in runtime
@@ -136,6 +138,10 @@ class Driver : public rclcpp::Node
    * @brief ROS Service for triggering re setup of the node.
    */
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr restart_srv_;
+  /**
+   * @brief ROS Service for reloading calibration files without restarting.
+   */
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_config_srv_;
   /**
    * @brief ROS Service for pausing/resuming image publishing.
    */
