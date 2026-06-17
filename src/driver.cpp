@@ -123,13 +123,12 @@ bool Driver::setup()
 
   camera_->setCustomPipeline(gstreamer_pipeline_);
 
-  bool rtsp_opened = true;
   if (rtsp_url_ != "")
   {
     if (!camera_->openRtsp(rtsp_url_, width_, height_, static_cast<int>(read_rate_)))
     {
-      RCLCPP_WARN(get_logger(), "[%s] Couldn't open RTSP stream [%s] — will retry via reconnection routine", name_.c_str(), rtsp_url_.c_str());
-      rtsp_opened = false;
+      RCLCPP_WARN(get_logger(), "[%s] Couldn't open RTSP stream [%s]", name_.c_str(), rtsp_url_.c_str());
+      return false;
     }
   }
   else if (video_path_ != "")
@@ -184,7 +183,7 @@ bool Driver::setup()
 #endif  // CV_CAP_PROP_BUFFERSIZE
   }
 
-  // Timers — always created so reconnection via proceed() works even if initial open failed.
+  // Timers
   read_tmr_ =
     this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / read_rate_)), std::bind(&Driver::read, this));
   publish_tmr_ =
@@ -194,15 +193,6 @@ bool Driver::setup()
   update_resolution_tmr_->cancel();
 
   cam_status_ = std::make_shared<std_msgs::msg::UInt8>();
-  if (!rtsp_opened)
-  {
-    // RTSP open failed on startup; mark disconnected so proceed() triggers reconnection.
-    read_tmr_->cancel();
-    cam_status_->data = DISCONNECTED;
-    pub_cam_status_->publish(*cam_status_);
-    publish_diagnostic(DISCONNECTED);
-    return true;
-  }
   cam_status_->data = ONLINE;
   pub_cam_status_->publish(*cam_status_);
   publish_diagnostic(ONLINE);

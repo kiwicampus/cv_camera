@@ -284,10 +284,8 @@ bool Capture::openRtsp(const std::string &rtsp_url, int width, int height, int f
     if (has_nvvidconv)
     {
       // Jetson: decodebin picks nvv4l2decoder; nvvidconv handles resize+convert in hardware
-      // protocols=udp+tcp: try UDP first (preferred by most embedded cameras), fall back to TCP.
-      // latency=200: give the jitter buffer enough headroom on first connect / after a gap.
       pipeline = "rtspsrc location=\"" + rtsp_url +
-                 "\" protocols=udp+tcp latency=200 buffer-mode=0 do-retransmission=false drop-on-latency=true"
+                 "\" protocols=tcp latency=0 buffer-mode=0 do-retransmission=false drop-on-latency=true"
                  " ! decodebin"
                  " ! queue max-size-buffers=1 max-size-bytes=0 max-size-time=0 leaky=downstream"
                  " ! nvvidconv"
@@ -300,7 +298,7 @@ bool Capture::openRtsp(const std::string &rtsp_url, int width, int height, int f
     {
       // x86 / dev machine: software decode + convert
       pipeline = "rtspsrc location=\"" + rtsp_url +
-                 "\" protocols=udp+tcp latency=200 buffer-mode=0 do-retransmission=false drop-on-latency=true"
+                 "\" protocols=tcp latency=0 buffer-mode=0 do-retransmission=false drop-on-latency=true"
                  " ! decodebin"
                  " ! queue max-size-buffers=1 max-size-bytes=0 max-size-time=0 leaky=downstream"
                  " ! videoscale ! video/x-raw" + size_caps +
