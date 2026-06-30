@@ -477,6 +477,13 @@ void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_reque
                           shared_ptr_trigger_response response)
 {
   RCLCPP_WARN(get_logger(), "[%s] Restarting camera setup...", name_.c_str());
+
+  if(cam_status_->data == ONLINE){
+    response->success = true;
+    response->message = "Camera already online";
+    return;
+  }
+  
   reconnection_attempts_ = 0;
   setup();
   response->success = true;
