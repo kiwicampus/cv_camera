@@ -132,6 +132,7 @@ class Driver : public rclcpp::Node
    * @brief ROS private timer for updating resolution.
    */
   rclcpp::TimerBase::SharedPtr update_resolution_tmr_;
+  rclcpp::TimerBase::SharedPtr restart_oneshot_timer_;
   /**
    * @brief ROS Service for triggering re setup of the node.
    */

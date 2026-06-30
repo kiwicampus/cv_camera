@@ -485,7 +485,11 @@ void Driver::RestartNodeCb(shared_ptr_request_id const, shared_ptr_trigger_reque
   }
   
   reconnection_attempts_ = 0;
-  setup();
+  // one shot timer so the callback returns inmediately without blocking the executor thread
+  restart_oneshot_timer_ = this->create_wall_timer(std::chrono::milliseconds(0), [this]() {
+    restart_oneshot_timer_->cancel();
+    setup();
+  });
   response->success = true;
   response->message = "Camera setup will be restarted";
 }

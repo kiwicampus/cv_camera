@@ -315,13 +315,15 @@ bool Capture::openRtsp(const std::string &rtsp_url, int width, int height, int f
   for (int attempt = 0; attempt < max_retries; ++attempt)
   {
     cap_.open(pipeline, cv::CAP_GSTREAMER);
-    if (cap_.isOpened())
+    bool opened = cap_.isOpened();
+    if (opened)
     {
       cv::Mat probe;
       if (cap_.read(probe) && !probe.empty())
         break;
-      cap_.release();
     }
+    // Always release on failure
+    cap_.release();
     if (attempt < max_retries - 1)
     {
       RCLCPP_WARN(node_->get_logger(), "[%s] RTSP open attempt %d failed, retrying in 2s...", node_->get_name(), attempt + 1);
