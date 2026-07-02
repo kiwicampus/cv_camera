@@ -117,6 +117,11 @@ class Driver : public rclcpp::Node
    */
   void isFrameStaleCb(shared_ptr_request_id const request_header, shared_ptr_bool_request const request,
                      shared_ptr_bool_response response);
+  /**
+   * @brief Timer callback that samples the stale-frame evidence. Runs on its own
+   *        timer (stale_check_interval_sec_), independent of read_tmr_/publish_tmr_.
+   */
+  void staleCheckCb();
  private:
    /**
    * @brief ROS subscription for undistort request.
@@ -134,6 +139,11 @@ class Driver : public rclcpp::Node
    * @brief ROS private timer for updating resolution.
    */
   rclcpp::TimerBase::SharedPtr update_resolution_tmr_;
+  /**
+   * @brief ROS private timer for sampling stale-frame evidence. Runs independently of
+   *        read_tmr_/publish_tmr_, at stale_check_interval_sec_ (not the capture rate).
+   */
+  rclcpp::TimerBase::SharedPtr stale_check_tmr_;
   /**
    * @brief ROS Service for triggering re setup of the node.
    */
@@ -326,7 +336,10 @@ class Driver : public rclcpp::Node
   int video_stream_recovery_tries_;
   double focus_threshold_;
   bool check_focus_in_img_center_;
-  double stale_frame_threshold_;
+  double stale_check_interval_sec_;
+  int stale_pixel_intensity_threshold_;
+  double stale_min_changed_pixels_pct_;
+  int stale_window_size_;
   /**
    * @brief Reconnection attempts to open a camera port
    */

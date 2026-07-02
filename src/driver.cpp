@@ -52,7 +52,10 @@ void Driver::parameters_setup()
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
   param_manager_.addParameter(focus_threshold_, "focus_threshold", 100.0);
   param_manager_.addParameter(check_focus_in_img_center_, "check_focus_in_img_center", false);
-  param_manager_.addParameter(stale_frame_threshold_, "stale_frame_threshold", 0.8);
+  param_manager_.addParameter(stale_check_interval_sec_, "stale_check_interval_sec", 1.0);
+  param_manager_.addParameter(stale_pixel_intensity_threshold_, "stale_pixel_intensity_threshold", 10);
+  param_manager_.addParameter(stale_min_changed_pixels_pct_, "stale_min_changed_pixels_pct", 0.3);
+  param_manager_.addParameter(stale_window_size_, "stale_window_size", 5);
 
   // Video capture parameters
   param_manager_.addParameter(width_, "width", 640);
@@ -114,7 +117,9 @@ bool Driver::setup()
                             roi_exposure_,
                             focus_threshold_,
                             check_focus_in_img_center_,
-                            stale_frame_threshold_,
+                            stale_pixel_intensity_threshold_,
+                            stale_min_changed_pixels_pct_,
+                            stale_window_size_,
                             PUBLISHER_BUFFER_SIZE));
 
   if (video_path_ != "")
@@ -174,6 +179,9 @@ bool Driver::setup()
   update_resolution_tmr_ =
     this->create_wall_timer(std::chrono::milliseconds(200), std::bind(&Driver::update_resolution, this));
   update_resolution_tmr_->cancel();
+  // Runs independently of read_tmr_/publish_tmr_, at its own (much slower) configurable rate.
+  stale_check_tmr_ = this->create_wall_timer(std::chrono::duration<double>(stale_check_interval_sec_),
+                                              std::bind(&Driver::staleCheckCb, this));
 
   cam_status_->data = ONLINE;
   pub_cam_status_->publish(*cam_status_);
@@ -204,6 +212,12 @@ void Driver::read()
   {
     camera_->close();
   }
+}
+
+void Driver::staleCheckCb()
+{
+  if (!camera_->is_opened()) return;
+  camera_->updateStaleFrameEvidence();
 }
 
 void Driver::proceed()
@@ -383,10 +397,33 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         focus_threshold_ = parameter.as_double();
         camera_->setFocusThreshold(focus_threshold_);
       }
+      else if (name == "stale_check_interval_sec")
+      {
+        stale_check_interval_sec_ = parameter.as_double();
+        RCLCPP_WARN(get_logger(), "Setting new stale check interval to %f", stale_check_interval_sec_);
+        stale_check_tmr_->cancel();
+        stale_check_tmr_ = this->create_wall_timer(std::chrono::duration<double>(stale_check_interval_sec_),
+                                                    std::bind(&Driver::staleCheckCb, this));
+      }
+      else if (name == "stale_min_changed_pixels_pct")
+      {
+        stale_min_changed_pixels_pct_ = parameter.as_double();
+        camera_->setStaleMinChangedPixelsPct(stale_min_changed_pixels_pct_);
+      }
     }
     else if (type == rclcpp::ParameterType::PARAMETER_INTEGER)
     {
-      if (name == "width")
+      if (name == "stale_pixel_intensity_threshold")
+      {
+        stale_pixel_intensity_threshold_ = parameter.as_int();
+        camera_->setStalePixelIntensityThreshold(stale_pixel_intensity_threshold_);
+      }
+      else if (name == "stale_window_size")
+      {
+        stale_window_size_ = parameter.as_int();
+        camera_->setStaleWindowSize(stale_window_size_);
+      }
+      else if (name == "width")
       {
         width_ = parameter.as_int();
         // update height to maintain aspect ratio
@@ -437,11 +474,6 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       {
         check_focus_in_img_center_ = parameter.as_bool();
         camera_->setCheckFocusInImgCenter(check_focus_in_img_center_);
-      }
-      else if (name == "stale_frame_threshold")
-      {
-        stale_frame_threshold_ = parameter.as_double();
-        camera_->setStaleFrameThreshold(stale_frame_threshold_);
       }
     }
   }
