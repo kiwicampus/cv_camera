@@ -109,6 +109,12 @@ void Driver::parameters_setup()
 
 bool Driver::setup()
 {
+  // A fresh setup() supersedes any reconnection cycle tied to the old Capture instance.
+  if (reconnection_tmr_)
+  {
+    reconnection_tmr_->cancel();
+    reconnection_tmr_.reset();
+  }
 
   camera_.reset(new Capture(shared_from_this(),
                             "/video_mapping" + name_ + "/image_raw",
@@ -279,14 +285,43 @@ void Driver::proceed()
 
 void Driver::attempt_reconnection()
 {
-  while (reconnection_attempts_ < video_stream_recovery_tries_)
-  {
+  // Already retrying: let the running timer keep ticking instead of stacking another one.
+  if (reconnection_tmr_) return;
+
+  // Non-blocking: one attempt per timer tick, so the executor is never held for
+  // video_stream_recovery_tries_ * video_stream_recovery_time_ seconds at once.
+  reconnection_tmr_ = this->create_wall_timer(std::chrono::seconds(video_stream_recovery_time_), [this]() {
+    if (reconnection_attempts_ >= video_stream_recovery_tries_)
+    {
+      reconnection_tmr_->cancel();
+      reconnection_tmr_.reset();
+
+      RCLCPP_ERROR(get_logger(), "[%s] Camera lost", name_.c_str());
+      camera_->close();
+      cam_status_->data = LOST;
+      pub_cam_status_->publish(*cam_status_);
+      publish_diagnostic(LOST);
+
+      // set error image
+      std::stringstream error_msg;
+      auto upper_label = str_toupper(name_.c_str());
+      error_msg << upper_label << " CAMERA " << status_map_[LOST];
+      camera_->set_error_image(error_msg.str());
+
+      read_tmr_->cancel();
+      publish_tmr_->cancel();
+      return;
+    }
+
     RCLCPP_WARN(get_logger(), "[%s] Reconnecting... attempt %d/%d", name_.c_str(), reconnection_attempts_ + 1,
                 video_stream_recovery_tries_);
     if (rtsp_url_ != "" ? camera_->openRtsp(rtsp_url_, width_, height_, static_cast<int>(read_rate_)) : camera_->open(port_))
     {
       if (camera_->grab() && camera_->capture(flip_vertical_, flip_horizontal_))
       {
+        reconnection_tmr_->cancel();
+        reconnection_tmr_.reset();
+
         read_tmr_->reset();
         RCLCPP_WARN(get_logger(), "[%s] Reconnected", name_.c_str());
         reconnection_attempts_ = 0;
@@ -313,25 +348,7 @@ void Driver::attempt_reconnection()
     error_msg << upper_label << " " << status_map_[DISCONNECTED];
     camera_->set_error_image(error_msg.str());
     reconnection_attempts_++;
-    std::this_thread::sleep_for(std::chrono::seconds(video_stream_recovery_time_));
-  }
-  if (reconnection_attempts_ >= video_stream_recovery_tries_)
-  {
-    RCLCPP_ERROR(get_logger(), "[%s] Camera lost", name_.c_str());
-    camera_->close();
-    cam_status_->data = LOST;
-    pub_cam_status_->publish(*cam_status_);
-    publish_diagnostic(LOST);
-
-    // set error image
-    std::stringstream error_msg;
-    auto upper_label = str_toupper(name_.c_str());
-    error_msg << upper_label << " CAMERA " << status_map_[LOST];
-    camera_->set_error_image(error_msg.str());
-
-    read_tmr_->cancel();
-    publish_tmr_->cancel();
-  }
+  });
 }
 
 rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector<rclcpp::Parameter>& parameters)

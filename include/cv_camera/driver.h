@@ -134,6 +134,10 @@ class Driver : public rclcpp::Node
   rclcpp::TimerBase::SharedPtr update_resolution_tmr_;
   rclcpp::TimerBase::SharedPtr restart_oneshot_timer_;
   /**
+   * @brief ROS repeating timer driving non-blocking reconnection attempts.
+   */
+  rclcpp::TimerBase::SharedPtr reconnection_tmr_;
+  /**
    * @brief ROS Service for triggering re setup of the node.
    */
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr restart_srv_;
