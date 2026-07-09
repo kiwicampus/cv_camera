@@ -216,7 +216,8 @@ void Driver::read()
 
 void Driver::staleCheckCb()
 {
-  if (!camera_->is_opened()) return;
+  // skip while PAUSED: read_tmr_/publish_tmr_ are cancelled during a pause
+  if (!camera_->is_opened() || cam_status_->data == PAUSED) return;
   camera_->updateStaleFrameEvidence();
 }
 

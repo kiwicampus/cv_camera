@@ -726,12 +726,22 @@ void Capture::updateStaleFrameEvidence()
   {
     double changed_pct = computeChangedPixelsPct(bridge_.image, previous_bridge_.image, stale_pixel_intensity_threshold_);
     sample_looked_frozen = changed_pct < stale_min_changed_pixels_pct_;
+    RCLCPP_DEBUG(node_->get_logger(), "[%s] stale-check sample: changed_pct=%.3f%% (min=%.3f%%) -> %s", frame_id_.c_str(),
+                 changed_pct, stale_min_changed_pixels_pct_, sample_looked_frozen ? "frozen" : "changed");
   }
+
+  bool was_stale = isFrameStale();
 
   stale_sample_window_.push_back(sample_looked_frozen);
   while (stale_sample_window_.size() > stale_window_size_)
   {
     stale_sample_window_.pop_front();
+  }
+
+  if (!was_stale && isFrameStale())
+  {
+    RCLCPP_WARN(node_->get_logger(), "[%s] stale-check: last %zu samples all unchanged -> reporting STALE", frame_id_.c_str(),
+                stale_window_size_);
   }
 
   previous_bridge_.image = bridge_.image.clone();
