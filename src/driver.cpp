@@ -586,6 +586,9 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
   {
     read_tmr_->cancel();
     publish_tmr_->cancel();
+    // Evidence gathered before the pause can't be told apart from a genuinely frozen
+    // camera once sampling stops, so it must not survive the pause.
+    camera_->resetStaleEvidence();
     cam_status_->data = PAUSED;
     pub_cam_status_->publish(*cam_status_);
     publish_diagnostic(PAUSED);
@@ -614,6 +617,7 @@ void Driver::ReleaseCamCb(shared_ptr_request_id const, shared_ptr_bool_request c
   {
     read_tmr_->cancel();
     publish_tmr_->cancel();
+    camera_->resetStaleEvidence();
     camera_->close();
     cam_status_->data = TURNED_OFF;
     pub_cam_status_->publish(*cam_status_);
@@ -639,6 +643,15 @@ void Driver::ReleaseCamCb(shared_ptr_request_id const, shared_ptr_bool_request c
 void Driver::isFrameStaleCb(shared_ptr_request_id const,  [[maybe_unused]] shared_ptr_bool_request const request,
                             shared_ptr_bool_response response)
 {
+  // While not ONLINE (paused, disconnected, lost...) sampling is stopped, so any
+  // window content predates the current state and must not be reported as stale.
+  if (cam_status_->data != ONLINE)
+  {
+    response->success = false;
+    response->message = "Camera is not online, no current stale evidence";
+    return;
+  }
+
   if (camera_->is_empty())
   {
     response->success = false;

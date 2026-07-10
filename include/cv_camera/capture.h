@@ -288,6 +288,13 @@ public:
   void updateStaleFrameEvidence();
 
   /**
+   * @brief Discard all stale-frame evidence: clears the sample window and the reference
+   *        frame. Call whenever sampling stops (pause, device release), so evidence
+   *        gathered before the stop can't be reported later as if it were current.
+   */
+  void resetStaleEvidence();
+
+  /**
    * @brief Compute the percentage of pixels that changed by more than intensity_threshold
    *        between two frames, after downsampling both to a small grayscale image.
    * @param current current frame

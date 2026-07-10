@@ -747,6 +747,12 @@ void Capture::updateStaleFrameEvidence()
   previous_bridge_.image = bridge_.image.clone();
 }
 
+void Capture::resetStaleEvidence()
+{
+  stale_sample_window_.clear();
+  has_prior_sample_ = false;
+}
+
 bool Capture::isFrameStale()
 {
   // Stale only once the window is full AND every single sample looked frozen -
