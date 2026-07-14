@@ -123,10 +123,23 @@ class Driver : public rclcpp::Node
    */
   void staleCheckCb();
  private:
+  /**
+   * @brief Publish the stale state on the frame_stale topic, only on transitions
+   */
+  void publishStaleState(bool stale);
    /**
    * @brief ROS subscription for undistort request.
    */
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr undistort_req_sub_;
+  /**
+   * @brief ROS subscription to actual robot motion (the stale frame logic only works when robot is moving)
+   */
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr is_moving_sub_;
+  /**
+   * @brief publishes true when the evidence window fills with
+   *        frozen samples, false when it clears.
+   */
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_frame_stale_;
   /**
    * @brief ROS private timer for publishing images.
    */
@@ -340,6 +353,14 @@ class Driver : public rclcpp::Node
   int stale_pixel_intensity_threshold_;
   double stale_min_changed_pixels_pct_;
   int stale_window_size_;
+  /**
+   * @brief Actual robot motion from /wheel_odometry/is_moving.
+   */
+  bool robot_is_moving_ = false;
+  /**
+   * @brief Last state published on the frame_stale topic, to publish only transitions.
+   */
+  bool last_stale_published_ = false;
   /**
    * @brief Reconnection attempts to open a camera port
    */

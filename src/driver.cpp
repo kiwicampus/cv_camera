@@ -73,9 +73,17 @@ void Driver::parameters_setup()
   param_manager_.addParameter(cv_cap_prop_auto_exposure_, "cv_cap_prop_auto_exposure", 3.0f);
 
   // Subscribers
-  undistort_req_sub_ = 
-    this->create_subscription<std_msgs::msg::Bool>("/video_mapping/un_distort", 1, 
+  undistort_req_sub_ =
+    this->create_subscription<std_msgs::msg::Bool>("/video_mapping/un_distort", 1,
                     [&](const std_msgs::msg::Bool::SharedPtr msg) -> void { undistort_img_req_bool_ = msg->data; });
+
+  // In intra process communication, we cant use transient local,
+  // so we disable the intra process for this subscription
+  rclcpp::SubscriptionOptionsWithAllocator<std::allocator<void>> sub_options;
+  sub_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
+  is_moving_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+    "/wheel_odometry/is_moving", rclcpp::QoS(1).transient_local().reliable(),
+    [&](const std_msgs::msg::Bool::SharedPtr msg) -> void { robot_is_moving_ = msg->data; }, sub_options);
 
   // Publishers
   // In intra process communication, we cant use transient local,
@@ -84,6 +92,13 @@ void Driver::parameters_setup()
   options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
   pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", rclcpp::QoS(1).keep_all().transient_local().reliable(), options);
   pub_cam_diagnostic_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics", 1);
+  pub_frame_stale_ = this->create_publisher<std_msgs::msg::Bool>(
+    "/video_mapping" + name_ + "/frame_stale", rclcpp::QoS(1).transient_local().reliable(), options);
+
+  // Seed the latched stale topic so late joiners always see a defined state
+  std_msgs::msg::Bool stale_msg;
+  stale_msg.data = false;
+  pub_frame_stale_->publish(stale_msg);
 
   // Services
   restart_srv_ = this->create_service<std_srvs::srv::Trigger>(
@@ -218,7 +233,26 @@ void Driver::staleCheckCb()
 {
   // skip while PAUSED: read_tmr_/publish_tmr_ are cancelled during a pause
   if (!camera_->is_opened() || cam_status_->data == PAUSED) return;
+
+  // skip check if robot is not moving
+  if (!robot_is_moving_)
+  {
+    camera_->resetStaleEvidence();
+    publishStaleState(false);
+    return;
+  }
+
   camera_->updateStaleFrameEvidence();
+  publishStaleState(camera_->isFrameStale());
+}
+
+void Driver::publishStaleState(bool stale)
+{
+  if (stale == last_stale_published_) return;
+  std_msgs::msg::Bool msg;
+  msg.data = stale;
+  pub_frame_stale_->publish(msg);
+  last_stale_published_ = stale;
 }
 
 void Driver::proceed()
@@ -589,6 +623,7 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
     // Evidence gathered before the pause can't be told apart from a genuinely frozen
     // camera once sampling stops, so it must not survive the pause.
     camera_->resetStaleEvidence();
+    publishStaleState(false);
     cam_status_->data = PAUSED;
     pub_cam_status_->publish(*cam_status_);
     publish_diagnostic(PAUSED);
@@ -618,6 +653,7 @@ void Driver::ReleaseCamCb(shared_ptr_request_id const, shared_ptr_bool_request c
     read_tmr_->cancel();
     publish_tmr_->cancel();
     camera_->resetStaleEvidence();
+    publishStaleState(false);
     camera_->close();
     cam_status_->data = TURNED_OFF;
     pub_cam_status_->publish(*cam_status_);
