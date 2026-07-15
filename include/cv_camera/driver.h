@@ -212,6 +212,10 @@ class Driver : public rclcpp::Node
   */
   bool flip_horizontal_;
   /**
+   * @brief Clockwise image rotation in degrees. Valid values: 0 (no rotation), 90, 180, 270
+  */
+  int rotate_;
+  /**
    * @brief Enables/disables our custom made exposure control depending on the ROI
   */
   bool roi_exposure_;

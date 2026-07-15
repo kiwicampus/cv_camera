@@ -164,9 +164,10 @@ public:
    * to publish the captured image, call publish();
    * @param flip_vertical flip the image around vertical axis if true
    * @param flip_horizontal flip the image around horizontal axis if true
+   * @param rotate clockwise rotation in degrees; valid values 0 (none), 90, 180, 270
    * @return true if success to capture, false if not captured.
    */
-  bool capture(bool flip_vertical, bool flip_horizontal);
+  bool capture(bool flip_vertical, bool flip_horizontal, int rotate = 0);
 
   /**
    * @brief pull an image from the camera but dont decode it

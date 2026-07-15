@@ -352,14 +352,22 @@ bool Capture::grab()
   return cap_.grab();
 }
 
-bool Capture::capture(bool flip_vertical, bool flip_horizontal)
+bool Capture::capture(bool flip_vertical, bool flip_horizontal, int rotate)
 {
   // Store previous frame before getting new one
   previous_bridge_.image = bridge_.image.clone();
-  
+
   if (!cap_.retrieve(bridge_.image)) return false;
   if (flip_vertical) cv::flip(bridge_.image, bridge_.image, 0);
   if (flip_horizontal) cv::flip(bridge_.image, bridge_.image, 1);
+
+  // Clockwise rotation. rotate == 0 means no rotation
+  if (rotate == 90)
+    cv::rotate(bridge_.image, bridge_.image, cv::ROTATE_90_CLOCKWISE);
+  else if (rotate == 180)
+    cv::rotate(bridge_.image, bridge_.image, cv::ROTATE_180);
+  else if (rotate == 270)
+    cv::rotate(bridge_.image, bridge_.image, cv::ROTATE_90_COUNTERCLOCKWISE);
 
   // Our custom made exposure set depending on ROI
   if (roi_exposure_) custom_roi_exposure(bridge_.image);
