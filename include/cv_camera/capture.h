@@ -5,7 +5,6 @@
 
 #include "cv_camera/exception.h"
 #include <deque>
-#include <optional>
 #include <string>
 
 #include <rclcpp/rclcpp.hpp>
@@ -283,10 +282,8 @@ public:
   /**
    * @brief Take one stale-detection sample, diff the current frame against the frame
    *        from the previous call
-   * @return the changed-pixels percentage (0-100) of this sample, or std::nullopt when
-   *         no diff could be computed
    */
-  std::optional<double> updateStaleFrameEvidence();
+  void updateStaleFrameEvidence();
 
   /**
    * @brief Discard all stale-frame evidence: clears the sample window and the reference

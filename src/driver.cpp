@@ -194,9 +194,12 @@ bool Driver::setup()
   update_resolution_tmr_ =
     this->create_wall_timer(std::chrono::milliseconds(200), std::bind(&Driver::update_resolution, this));
   update_resolution_tmr_->cancel();
-  // Runs independently of read_tmr_/publish_tmr_, at its own (much slower) configurable rate.
-  stale_check_tmr_ = this->create_wall_timer(std::chrono::duration<double>(stale_check_interval_sec_),
-                                              std::bind(&Driver::staleCheckCb, this));
+  // Runs independently of read_tmr_/publish_tmr_
+  if (stale_frame_check_)
+  {
+    stale_check_tmr_ = this->create_wall_timer(std::chrono::duration<double>(stale_check_interval_sec_),
+                                                std::bind(&Driver::staleCheckCb, this));
+  }
 
   cam_status_->data = ONLINE;
   pub_cam_status_->publish(*cam_status_);
@@ -435,10 +438,14 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       else if (name == "stale_check_interval_sec")
       {
         stale_check_interval_sec_ = parameter.as_double();
-        RCLCPP_WARN(get_logger(), "Setting new stale check interval to %f", stale_check_interval_sec_);
-        stale_check_tmr_->cancel();
-        stale_check_tmr_ = this->create_wall_timer(std::chrono::duration<double>(stale_check_interval_sec_),
-                                                    std::bind(&Driver::staleCheckCb, this));
+        // No timer when the stale check is disabled via env var; nothing to recreate.
+        if (stale_check_tmr_)
+        {
+          RCLCPP_WARN(get_logger(), "Setting new stale check interval to %f", stale_check_interval_sec_);
+          stale_check_tmr_->cancel();
+          stale_check_tmr_ = this->create_wall_timer(std::chrono::duration<double>(stale_check_interval_sec_),
+                                                      std::bind(&Driver::staleCheckCb, this));
+        }
       }
       else if (name == "stale_min_changed_pixels_pct")
       {

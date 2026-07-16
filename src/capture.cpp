@@ -699,36 +699,34 @@ double Capture::computeChangedPixelsPct(const cv::Mat &current, const cv::Mat &p
   return (static_cast<double>(changed_pixels) / total_pixels) * 100.0;
 }
 
-std::optional<double> Capture::updateStaleFrameEvidence()
+void Capture::updateStaleFrameEvidence()
 {
-  // First sample ever (or right after a reset): just seed the reference frame.
+  // First sample ever (or right after a reset)
   if (!has_prior_sample_)
   {
-    if (bridge_.image.empty()) return std::nullopt;
+    if (bridge_.image.empty()) return;
     previous_bridge_.image = bridge_.image.clone();
     has_prior_sample_ = true;
-    return std::nullopt;
+    return;
   }
 
   // true  = this sample looked "frozen" (too little change) -> a vote TOWARD stale
   // false = this sample showed real change                  -> a vote AGAINST stale
   bool sample_looked_frozen;
-  std::optional<double> changed_pct;
 
   if (bridge_.image.empty() || previous_bridge_.image.empty() ||
       bridge_.image.size() != previous_bridge_.image.size() ||
       bridge_.image.type() != previous_bridge_.image.type())
   {
-    // Can't safely diff (resolution/format change, reconnection, etc.) - fail safe by
-    // treating this sample as real change instead of letting cv::absdiff throw.
+    // Can't tell maybe some (resolution/format change, reconnection, etc.)
     sample_looked_frozen = false;
   }
   else
   {
-    changed_pct = computeChangedPixelsPct(bridge_.image, previous_bridge_.image, stale_pixel_intensity_threshold_);
-    sample_looked_frozen = changed_pct.value() < stale_min_changed_pixels_pct_;
+    double changed_pct = computeChangedPixelsPct(bridge_.image, previous_bridge_.image, stale_pixel_intensity_threshold_);
+    sample_looked_frozen = changed_pct < stale_min_changed_pixels_pct_;
     RCLCPP_DEBUG(node_->get_logger(), "[%s] stale-check sample: changed_pct=%.3f%% (min=%.3f%%) -> %s", frame_id_.c_str(),
-                 changed_pct.value(), stale_min_changed_pixels_pct_, sample_looked_frozen ? "frozen" : "changed");
+                 changed_pct, stale_min_changed_pixels_pct_, sample_looked_frozen ? "frozen" : "changed");
   }
 
   bool was_stale = isFrameStale();
@@ -746,7 +744,6 @@ std::optional<double> Capture::updateStaleFrameEvidence()
   }
 
   previous_bridge_.image = bridge_.image.clone();
-  return changed_pct;
 }
 
 void Capture::resetStaleEvidence()
@@ -757,7 +754,7 @@ void Capture::resetStaleEvidence()
 
 bool Capture::isFrameStale()
 {
-  // Stale only once the window is full AND every single sample looked frozen -
+  // Stale only once the window is full AND every single sample looked frozen,
   // one sample with real change (false) anywhere in the window clears it.
   if (stale_sample_window_.size() < stale_window_size_) return false;
   return std::all_of(stale_sample_window_.begin(), stale_sample_window_.end(),

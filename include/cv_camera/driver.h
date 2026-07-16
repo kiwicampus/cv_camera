@@ -260,6 +260,10 @@ class Driver : public rclcpp::Node
   */
   bool reconnection_routine_ = !getEnv("VISION_MONITOR_USB_CAMS", true);
   /**
+   * @brief Enables/disables stale frame check feature
+  */
+  bool stale_frame_check_ = getEnv("VIDEO_MAPPING_CPP_STALE_FRAME_CHECK", true);
+  /**
    * @brief Video path
   */
   std::string video_path_;
