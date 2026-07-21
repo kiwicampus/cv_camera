@@ -132,9 +132,9 @@ class Driver : public rclcpp::Node
    */
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr undistort_req_sub_;
   /**
-   * @brief ROS subscription to actual robot motion (the stale frame logic only works when robot is moving)
+   * @brief ROS subscription gating stale-evidence sampling (video_mapping decides when)
    */
-  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr is_moving_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr stale_sampling_enabled_sub_;
   /**
    * @brief publishes true when the evidence window fills with
    *        frozen samples, false when it clears.
@@ -358,9 +358,9 @@ class Driver : public rclcpp::Node
   double stale_min_changed_pixels_pct_;
   int stale_window_size_;
   /**
-   * @brief Actual robot motion from /wheel_odometry/is_moving.
+   * @brief Whether video_mapping currently allows stale-evidence sampling.
    */
-  bool robot_is_moving_ = false;
+  bool stale_sampling_enabled_ = false;
   /**
    * @brief Last state published on the frame_stale topic, to publish only transitions.
    */

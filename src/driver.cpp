@@ -81,9 +81,9 @@ void Driver::parameters_setup()
   // so we disable the intra process for this subscription
   rclcpp::SubscriptionOptionsWithAllocator<std::allocator<void>> sub_options;
   sub_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
-  is_moving_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-    "/wheel_odometry/is_moving", rclcpp::QoS(1).transient_local().reliable(),
-    [&](const std_msgs::msg::Bool::SharedPtr msg) -> void { robot_is_moving_ = msg->data; }, sub_options);
+  stale_sampling_enabled_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+    "/video_mapping/stale_sampling_enabled", rclcpp::QoS(1).transient_local().reliable(),
+    [&](const std_msgs::msg::Bool::SharedPtr msg) -> void { stale_sampling_enabled_ = msg->data; }, sub_options);
 
   // Publishers
   // In intra process communication, we cant use transient local,
@@ -237,8 +237,8 @@ void Driver::staleCheckCb()
   // skip while PAUSED: read_tmr_/publish_tmr_ are cancelled during a pause
   if (!camera_->is_opened() || cam_status_->data == PAUSED) return;
 
-  // skip check if robot is not moving
-  if (!robot_is_moving_)
+  // skip check if video_mapping isn't currently authorizing sampling
+  if (!stale_sampling_enabled_)
   {
     camera_->resetStaleEvidence();
     publishStaleState(false);
