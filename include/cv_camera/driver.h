@@ -117,11 +117,30 @@ class Driver : public rclcpp::Node
    */
   void isFrameStaleCb(shared_ptr_request_id const request_header, shared_ptr_bool_request const request,
                      shared_ptr_bool_response response);
+  /**
+   * @brief Timer callback that samples the stale-frame evidence. Runs on its own
+   *        timer (stale_check_interval_sec_), independent of read_tmr_/publish_tmr_.
+   */
+  void staleCheckCb();
  private:
+  /**
+   * @brief Publish the stale state on the frame_stale topic, only on transitions
+   */
+  void publishStaleState(bool stale);
    /**
    * @brief ROS subscription for undistort request.
    */
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr undistort_req_sub_;
+  /**
+   * @brief ROS subscription gating stale-evidence sampling; the source topic is generic
+   *        so each deployment can remap it to whatever enable signal applies (e.g. /wheel_odometry/is_moving).
+   */
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr stale_sampling_enabled_sub_;
+  /**
+   * @brief publishes true when the evidence window fills with
+   *        frozen samples, false when it clears.
+   */
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_frame_stale_;
   /**
    * @brief ROS private timer for publishing images.
    */
@@ -134,6 +153,11 @@ class Driver : public rclcpp::Node
    * @brief ROS private timer for updating resolution.
    */
   rclcpp::TimerBase::SharedPtr update_resolution_tmr_;
+  /**
+   * @brief ROS private timer for sampling stale-frame evidence. Runs independently of
+   *        read_tmr_/publish_tmr_, at stale_check_interval_sec_ (not the capture rate).
+   */
+  rclcpp::TimerBase::SharedPtr stale_check_tmr_;
   /**
    * @brief ROS Service for triggering re setup of the node.
    */
@@ -237,6 +261,10 @@ class Driver : public rclcpp::Node
   */
   bool reconnection_routine_ = !getEnv("VISION_MONITOR_USB_CAMS", true);
   /**
+   * @brief Enables/disables stale frame check feature
+  */
+  bool stale_frame_check_ = getEnv("VIDEO_MAPPING_CPP_STALE_FRAME_CHECK", true);
+  /**
    * @brief Video path
   */
   std::string video_path_;
@@ -326,7 +354,23 @@ class Driver : public rclcpp::Node
   int video_stream_recovery_tries_;
   double focus_threshold_;
   bool check_focus_in_img_center_;
-  double stale_frame_threshold_;
+  double stale_check_interval_sec_;
+  int stale_pixel_intensity_threshold_;
+  double stale_min_changed_pixels_pct_;
+  int stale_window_size_;
+  /**
+   * @brief Per-camera override to disable the stale-frame check (e.g. cameras expected to
+   *        stay static, like the inner camera).
+   */
+  bool stale_check_enabled_;
+  /**
+   * @brief Whether stale-evidence sampling is currently enabled (fed by stale_sampling_enabled_sub_).
+   */
+  bool stale_sampling_enabled_ = false;
+  /**
+   * @brief Last state published on the frame_stale topic, to publish only transitions.
+   */
+  bool last_stale_published_ = false;
   /**
    * @brief Reconnection attempts to open a camera port
    */

@@ -4,6 +4,7 @@
 #define CV_CAMERA_CAPTURE_H
 
 #include "cv_camera/exception.h"
+#include <deque>
 #include <string>
 
 #include <rclcpp/rclcpp.hpp>
@@ -54,7 +55,9 @@ public:
    * @param roi_exposure enable/disable ROI exposure control.
    * @param focus_threshold focus threshold.
    * @param check_focus_in_img_center check focus in image center.
-   * @param stale_frame_threshold threshold for determining if a camera is stale. 0.0 (no changes) to 100.0 (maximum possible difference)
+   * @param stale_pixel_intensity_threshold gray-level change (0-255) for a pixel to count as "changed" when checking for staleness.
+   * @param stale_min_changed_pixels_pct minimum percentage of changed pixels for a sample to count as "real change" rather than stale.
+   * @param stale_window_size number of consecutive stale-check samples required, all unchanged, to report the camera as stale.
    * @param buffer_size size of publisher buffer.
    */
   Capture(rclcpp::Node::SharedPtr node,
@@ -65,7 +68,9 @@ public:
           const bool roi_exposure,
           double focus_threshold,
           bool check_focus_in_img_center,
-          double stale_frame_threshold,
+          int stale_pixel_intensity_threshold,
+          double stale_min_changed_pixels_pct,
+          int stale_window_size,
           uint32_t buffer_size);
 
   /**
@@ -248,10 +253,20 @@ public:
   void setCheckFocusInImgCenter(bool check_focus_in_img_center);
 
   /**
-   * @brief Set stale frame threshold
-   * @param stale_frame_threshold threshold for determining if a camera is stale. 0.0 (no changes) to 100.0 (maximum possible difference)
+   * @brief Set the pixel intensity threshold used to decide if a single pixel changed.
    */
-  void setStaleFrameThreshold(double stale_frame_threshold);
+  void setStalePixelIntensityThreshold(int stale_pixel_intensity_threshold);
+
+  /**
+   * @brief Set the minimum percentage of changed pixels for a sample to count as an actual change.
+   */
+  void setStaleMinChangedPixelsPct(double stale_min_changed_pixels_pct);
+
+  /**
+   * @brief Set the number of consecutive unchanged samples required to report the camera as stale.
+   *        Resets any in-progress sample window, since a mid-window size change can't be evaluated consistently.
+   */
+  void setStaleWindowSize(int stale_window_size);
 
   /**
    * @brief Set black error image in case of error.
@@ -259,10 +274,33 @@ public:
   void set_error_image(const std::string& error_msg, int width = 640, int height = 360);
 
   /**
-   * @brief Check if the current frame is stale (same as previous)
-   * @return true if frame is stale, false if it's fresh
+   * @brief Check if the current frame is stale (sustained lack of change)
+   * @return true if the last stale_window_size_ samples all showed no real change
    */
   bool isFrameStale();
+
+  /**
+   * @brief Take one stale-detection sample, diff the current frame against the frame
+   *        from the previous call
+   */
+  void updateStaleFrameEvidence();
+
+  /**
+   * @brief Discard all stale-frame evidence: clears the sample window and the reference
+   *        frame. Call whenever sampling stops (pause, device release), so evidence
+   *        gathered before the stop can't be reported later as if it were current.
+   */
+  void resetStaleEvidence();
+
+  /**
+   * @brief Compute the percentage of pixels that changed by more than intensity_threshold
+   *        between two frames, after downsampling both to a small grayscale image.
+   * @param current current frame
+   * @param previous previous frame (must be the same size/type as current)
+   * @param intensity_threshold per-pixel gray-level change (0-255) to count as "changed"
+   * @return percentage (0-100) of pixels that changed
+   */
+  static double computeChangedPixelsPct(const cv::Mat &current, const cv::Mat &previous, int intensity_threshold);
 
   /**
    * @brief rescale camera calibration to another resolution
@@ -363,9 +401,25 @@ private:
    */
   bool check_focus_in_img_center_;
   /**
-   * @brief Stale frame threshold
+   * @brief Gray-level change (0-255) for a pixel to count as "changed" in the stale check
    */
-  double stale_frame_threshold_;
+  int stale_pixel_intensity_threshold_;
+  /**
+   * @brief Minimum percentage of changed pixels for a sample to count as "real change"
+   */
+  double stale_min_changed_pixels_pct_;
+  /**
+   * @brief Number of consecutive unchanged samples required to report the camera as stale
+   */
+  size_t stale_window_size_;
+  /**
+   * @brief Sliding window of the most recent stale-check samples (true = unchanged)
+   */
+  std::deque<bool> stale_sample_window_;
+  /**
+   * @brief Whether updateStaleFrameEvidence() has captured a reference frame yet
+   */
+  bool has_prior_sample_ = false;
   /**
    * @brief timestamp of capture image
    */
