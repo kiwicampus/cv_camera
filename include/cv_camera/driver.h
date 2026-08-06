@@ -359,6 +359,11 @@ class Driver : public rclcpp::Node
   double stale_min_changed_pixels_pct_;
   int stale_window_size_;
   /**
+   * @brief Per-camera override to disable the stale-frame check (e.g. cameras expected to
+   *        stay static, like the inner camera).
+   */
+  bool stale_check_enabled_;
+  /**
    * @brief Whether stale-evidence sampling is currently enabled (fed by stale_sampling_enabled_sub_).
    */
   bool stale_sampling_enabled_ = false;

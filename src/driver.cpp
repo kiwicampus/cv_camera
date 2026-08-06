@@ -56,6 +56,7 @@ void Driver::parameters_setup()
   param_manager_.addParameter(stale_pixel_intensity_threshold_, "stale_pixel_intensity_threshold", 10);
   param_manager_.addParameter(stale_min_changed_pixels_pct_, "stale_min_changed_pixels_pct", 0.3);
   param_manager_.addParameter(stale_window_size_, "stale_window_size", 5);
+  param_manager_.addParameter(stale_check_enabled_, "stale_check_enabled", true);
 
   // Video capture parameters
   param_manager_.addParameter(width_, "width", 640);
@@ -195,7 +196,7 @@ bool Driver::setup()
     this->create_wall_timer(std::chrono::milliseconds(200), std::bind(&Driver::update_resolution, this));
   update_resolution_tmr_->cancel();
   // Runs independently of read_tmr_/publish_tmr_
-  if (stale_frame_check_)
+  if (stale_frame_check_ && stale_check_enabled_)
   {
     stale_check_tmr_ = this->create_wall_timer(std::chrono::duration<double>(stale_check_interval_sec_),
                                                 std::bind(&Driver::staleCheckCb, this));
@@ -516,6 +517,22 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
       {
         check_focus_in_img_center_ = parameter.as_bool();
         camera_->setCheckFocusInImgCenter(check_focus_in_img_center_);
+      }
+      else if (name == "stale_check_enabled")
+      {
+        stale_check_enabled_ = parameter.as_bool();
+        if (stale_check_enabled_ && stale_frame_check_ && !stale_check_tmr_)
+        {
+          stale_check_tmr_ = this->create_wall_timer(std::chrono::duration<double>(stale_check_interval_sec_),
+                                                      std::bind(&Driver::staleCheckCb, this));
+        }
+        else if (!stale_check_enabled_ && stale_check_tmr_)
+        {
+          stale_check_tmr_->cancel();
+          stale_check_tmr_.reset();
+          camera_->resetStaleEvidence();
+          publishStaleState(false);
+        }
       }
     }
   }
