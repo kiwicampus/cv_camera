@@ -77,6 +77,8 @@ void Capture::loadCameraInfo()
   rescale_camera_info_ = false;
   node_->get_parameter_or("rescale_camera_info", rescale_camera_info_, rescale_camera_info_);
 
+  // Caps are fixed by the pipeline; a failed set() here can break the next grab().
+  if (use_gstreamer_) return;
 
   for (int i = 0;; ++i)
   {
@@ -240,6 +242,7 @@ bool Capture::openFile(const std::string &file_path)
 bool Capture::openGstreamer(const std::string &pipeline)
 {
   RCLCPP_INFO(node_->get_logger(), "[%s] Opening GStreamer pipeline: %s", node_->get_name(), pipeline.c_str());
+  use_gstreamer_ = true;
   cap_.open(pipeline, cv::CAP_GSTREAMER);
   if (!cap_.isOpened())
   {
@@ -437,6 +440,8 @@ sensor_msgs::msg::Image::SharedPtr Capture::getUndistortedImageMsgPtr()
 
 bool Capture::setPropertyFromParam(int property_id, const std::string &param_name)
 {
+  if (use_gstreamer_) return true;
+
   if (cap_.isOpened())
   {
     double value = 0.0;

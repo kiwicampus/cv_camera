@@ -400,6 +400,9 @@ private:
    */
   std::string video_path_ = "";
 
+  /** @brief Set by openGstreamer(). Skips capture property writes, unsupported there. */
+  bool use_gstreamer_ = false;
+
   /**
    * @brief capture device.
    */
