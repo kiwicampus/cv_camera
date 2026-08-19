@@ -287,6 +287,14 @@ class Driver : public rclcpp::Node
    */
   float aspect_ratio_;
   /**
+   * @brief also publish frames through shm_ros, alongside the normal topic.
+   */
+  bool use_shm_;
+  /**
+   * @brief kill switch stamped onto every shm announcement -- see shm_ros/ShmImage.msg.
+   */
+  bool use_shm_gpu_;
+  /**
    * @brief Camera cv_cap_prop_brightness.
    */
   float cv_cap_prop_brightness_;

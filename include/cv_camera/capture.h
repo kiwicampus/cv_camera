@@ -22,6 +22,10 @@
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "diagnostic_msgs/msg/diagnostic_status.hpp"
 
+#include <optional>
+
+#include "shm_ros/publisher.hpp"
+
 #include "utils/console.hpp"
 #include "utils/parameters.hpp"
 #include "utils/string_utils.hpp"
@@ -56,6 +60,8 @@ public:
    * @param check_focus_in_img_center check focus in image center.
    * @param stale_frame_threshold threshold for determining if a camera is stale. 0.0 (no changes) to 100.0 (maximum possible difference)
    * @param buffer_size size of publisher buffer.
+   * @param use_shm also publish frames through shm_ros, alongside the normal ROS topic.
+   * @param use_shm_gpu kill switch stamped onto every shm announcement: consumers only attempt GPU access if true.
    */
   Capture(rclcpp::Node::SharedPtr node,
           const std::string &img_topic_name,
@@ -66,7 +72,9 @@ public:
           double focus_threshold,
           bool check_focus_in_img_center,
           double stale_frame_threshold,
-          uint32_t buffer_size);
+          uint32_t buffer_size,
+          bool use_shm = false,
+          bool use_shm_gpu = false);
 
   /**
    * @brief Open capture device with device ID.
@@ -312,6 +320,22 @@ private:
   std::string mat_type2encoding(int mat_type);
 
   /**
+   * @brief Copies the already-captured frame into the shm segment and
+   * publishes its descriptor. (Re)opens the segment first if this is the
+   * first frame or the frame size changed (e.g. a resolution change).
+   * No-op if use_shm_ is false.
+   */
+  void publishShm();
+
+  /**
+   * @brief Same as publishShm(), but for rect_image_ / the rectified stream --
+   * a separate shm segment/topic, since it's a logically distinct image
+   * (only populated while rectify()/undistort is active). No-op if use_shm_
+   * is false.
+   */
+  void publishRectShm();
+
+  /**
    * @brief set current time to message header
    */
   void set_now(builtin_interfaces::msg::Time& time);
@@ -442,6 +466,24 @@ private:
    * @brief Final publisher for camera info messages
    */
   rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr m_pub_camera_info_ptr;
+
+  /**
+   * @brief also publish frames through shm_ros, alongside the normal topic above.
+   */
+  bool use_shm_;
+  /**
+   * @brief kill switch stamped onto every shm announcement -- see shm_ros/ShmImage.msg.
+   */
+  bool use_shm_gpu_;
+  /**
+   * @brief owns the shm segment and publisher for the raw stream. Unset when use_shm_ is false --
+   * not default-constructible, since shm_ros::ImagePublisher always needs a node/topic/qos.
+   */
+  std::optional<shm_ros::ImagePublisher> shm_writer_;
+  /**
+   * @brief owns the shm segment and publisher for the rectified stream (separate segment from the raw one).
+   */
+  std::optional<shm_ros::ImagePublisher> shm_rect_writer_;
 
 };
 

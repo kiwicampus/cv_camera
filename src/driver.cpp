@@ -69,6 +69,10 @@ void Driver::parameters_setup()
   param_manager_.addParameter(cv_cap_prop_exposure_, "cv_cap_prop_exposure", 156.0f);
   param_manager_.addParameter(cv_cap_prop_auto_exposure_, "cv_cap_prop_auto_exposure", 3.0f);
 
+  // shm_ros parameters
+  param_manager_.addParameter(use_shm_, "use_shm", false);
+  param_manager_.addParameter(use_shm_gpu_, "use_shm_gpu", false);
+
   // Subscribers
   undistort_req_sub_ = 
     this->create_subscription<std_msgs::msg::Bool>("/video_mapping/un_distort", 1, 
@@ -115,7 +119,9 @@ bool Driver::setup()
                             focus_threshold_,
                             check_focus_in_img_center_,
                             stale_frame_threshold_,
-                            PUBLISHER_BUFFER_SIZE));
+                            PUBLISHER_BUFFER_SIZE,
+                            use_shm_,
+                            use_shm_gpu_));
 
   if (video_path_ != "")
   {

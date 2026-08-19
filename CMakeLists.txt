@@ -31,6 +31,7 @@ find_package(camera_info_manager REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(utils REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
+find_package(shm_ros REQUIRED)
 
 set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS_INIT} -fPIC")
 
@@ -50,6 +51,7 @@ add_library(cv_camera_driver SHARED src/capture.cpp src/driver.cpp )
 
 target_link_libraries(cv_camera_driver
   ${OpenCV_LIBS}
+  shm_ros::shm_ros_core
 )
 
 # Use the new approach to link against the generated interfaces
@@ -83,6 +85,7 @@ std_srvs
 OpenCV
 utils
 diagnostic_msgs
+shm_ros
 )
 ## Specify libraries to link a library or executable target against
 ament_target_dependencies(cv_camera_driver

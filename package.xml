@@ -35,6 +35,7 @@
   <depend>sensor_msgs</depend>
   <depend>utils</depend>
   <depend>diagnostic_msgs</depend>
+  <depend>shm_ros</depend>
 
   <!-- For using ROS2 custom messages -->
   <member_of_group>rosidl_interface_packages</member_of_group>

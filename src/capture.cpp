@@ -9,8 +9,9 @@ namespace cv_camera
 
 namespace enc = sensor_msgs::image_encodings;
 
-Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name, 
-                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, double stale_frame_threshold, uint32_t buffer_size)
+Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name,
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, double stale_frame_threshold, uint32_t buffer_size,
+                 bool use_shm, bool use_shm_gpu)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
@@ -23,7 +24,9 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
       stale_frame_threshold_(stale_frame_threshold),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
-      capture_delay_(rclcpp::Duration(0, 0.0))
+      capture_delay_(rclcpp::Duration(0, 0.0)),
+      use_shm_(use_shm),
+      use_shm_gpu_(use_shm_gpu)
 {
     int dur = 0;
     m_pub_image_ptr = node->create_publisher<sensor_msgs::msg::Image>(img_topic_name_, rclcpp::QoS(rclcpp::SensorDataQoS()));
@@ -31,6 +34,12 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
     m_pub_camera_info_ptr = node->create_publisher<sensor_msgs::msg::CameraInfo>(cam_info_topic_name_, rclcpp::QoS(rclcpp::SensorDataQoS()));
     node_->get_parameter_or("capture_delay", dur, dur);
     this->capture_delay_ = rclcpp::Duration(dur, 0.0);
+
+    if (use_shm_)
+    {
+      shm_writer_.emplace(*node, img_topic_name_ + "/shm", rclcpp::QoS(rclcpp::SensorDataQoS()), use_shm_gpu_);
+      shm_rect_writer_.emplace(*node, rect_img_topic_name_ + "/shm", rclcpp::QoS(rclcpp::SensorDataQoS()), use_shm_gpu_);
+    }
 }
 
 
@@ -264,6 +273,9 @@ bool Capture::capture(bool flip_vertical, bool flip_horizontal)
 
   // Pack the OpenCV image into the ROS image.
   timestamp_ = node_->now();
+
+  if (use_shm_) publishShm();
+
   msg->header.stamp = timestamp_;
   msg->header.frame_id = frame_id_;
   msg->height = bridge_.image.rows;
@@ -359,6 +371,8 @@ void Capture::rectify()
   }
   cv::remap(rect_image_, rect_image_, map1_, map2_, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 
+  if (use_shm_) publishRectShm();
+
   // Update message
   sensor_msgs::msg::Image::UniquePtr msg_image(new sensor_msgs::msg::Image());
   msg_image->header.stamp = timestamp_;
@@ -377,6 +391,32 @@ void Capture::rectify()
 void Capture::publish(sensor_msgs::msg::Image::UniquePtr msg)
 {
   m_pub_image_ptr->publish(std::move(msg));
+}
+
+void Capture::publishShm()
+{
+  if (bridge_.image.empty() || !shm_writer_) return;
+
+  std_msgs::msg::Header header;
+  header.stamp = timestamp_;
+  header.frame_id = frame_id_;
+
+  shm_writer_->publish(bridge_.image.datastart, bridge_.image.total() * bridge_.image.elemSize(),
+                        static_cast<uint32_t>(bridge_.image.cols), static_cast<uint32_t>(bridge_.image.rows),
+                        mat_type2encoding(bridge_.image.type()), static_cast<uint32_t>(bridge_.image.step), header);
+}
+
+void Capture::publishRectShm()
+{
+  if (rect_image_.empty() || !shm_rect_writer_) return;
+
+  std_msgs::msg::Header header;
+  header.stamp = timestamp_;
+  header.frame_id = frame_id_;
+
+  shm_rect_writer_->publish(rect_image_.datastart, rect_image_.total() * rect_image_.elemSize(),
+                             static_cast<uint32_t>(rect_image_.cols), static_cast<uint32_t>(rect_image_.rows),
+                             mat_type2encoding(rect_image_.type()), static_cast<uint32_t>(rect_image_.step), header);
 }
 
 void Capture::close()
