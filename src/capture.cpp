@@ -133,7 +133,7 @@ void Capture::rescaleCameraInfo(uint width, uint height)
 {
   if (info_.width == width && info_.height == height)
   {
-    RCLCPP_INFO(node_->get_logger(), "[%s] No rescaling needed", node_->get_name());
+    RCLCPP_DEBUG(node_->get_logger(), "[%s] No rescaling needed", node_->get_name());
     return;
   }
 
@@ -176,8 +176,8 @@ bool Capture::rescaleFromFile(uint width, uint height)
   // If width and height are the same, we can use the hd_info instead of rescaling
   if (hd_info.width != width || hd_info.height != height) return false;
 
-  RCLCPP_INFO(node_->get_logger(), "[%s] Changing camera parameters from %dx%d to %dx%d as HD parameters were found", 
-              node_->get_name(), hd_info.width, hd_info.height, width, height);
+  RCLCPP_DEBUG(node_->get_logger(), "[%s] Changing camera parameters from %dx%d to %dx%d as HD parameters were found",
+               node_->get_name(), hd_info.width, hd_info.height, width, height);
 
   info_ = hd_info;
 
@@ -263,8 +263,8 @@ bool Capture::openRtsp(const std::string &rtsp_url, int width, int height, int f
   {
     pipeline = custom_pipeline_;
     error_context = "custom pipeline";
-    RCLCPP_INFO(node_->get_logger(), "[%s] RTSP pipeline (custom): %s",
-                node_->get_name(), pipeline.c_str());
+    RCLCPP_DEBUG(node_->get_logger(), "[%s] RTSP pipeline (custom): %s",
+                 node_->get_name(), pipeline.c_str());
   }
   else
   {
@@ -307,8 +307,8 @@ bool Capture::openRtsp(const std::string &rtsp_url, int width, int height, int f
                  " ! appsink sync=false drop=true max-buffers=1";
     }
     error_context = "RTSP stream: " + rtsp_url;
-    RCLCPP_INFO(node_->get_logger(), "[%s] RTSP pipeline (%s): %s",
-                node_->get_name(), has_nvvidconv ? "Jetson/nvvidconv" : "software", pipeline.c_str());
+    RCLCPP_DEBUG(node_->get_logger(), "[%s] RTSP pipeline (%s): %s",
+                 node_->get_name(), has_nvvidconv ? "Jetson/nvvidconv" : "software", pipeline.c_str());
   }
 
   const int max_retries = 3;

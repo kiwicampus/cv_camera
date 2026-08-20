@@ -214,10 +214,10 @@ bool Driver::setup()
   aspect_ratio_ = camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH) / camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT);
   // Update resolution to make sure it's set correctly
   update_resolution();
-  RCLCPP_INFO(get_logger(), "(GOT VIDEO) %s: DEVICE: %d - SIZE: %dX%d - RATE: %d/%d - PROP_MODE: %f - EXPOSURE: %d",
-              name_.c_str(), device_id_, int(camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH)),
-              int(camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT)), int(read_rate_), int(camera_->getProperty(cv::CAP_PROP_FPS)),
-              float(camera_->getProperty(cv::CAP_PROP_FOURCC)), int(camera_->getProperty(cv::CAP_PROP_AUTO_EXPOSURE)));
+  RCLCPP_DEBUG(get_logger(), "(GOT VIDEO) %s: DEVICE: %d - SIZE: %dX%d - RATE: %d/%d - PROP_MODE: %f - EXPOSURE: %d",
+               name_.c_str(), device_id_, int(camera_->getProperty(cv::CAP_PROP_FRAME_WIDTH)),
+               int(camera_->getProperty(cv::CAP_PROP_FRAME_HEIGHT)), int(read_rate_), int(camera_->getProperty(cv::CAP_PROP_FPS)),
+               float(camera_->getProperty(cv::CAP_PROP_FOURCC)), int(camera_->getProperty(cv::CAP_PROP_AUTO_EXPOSURE)));
   return true;
 }
 
