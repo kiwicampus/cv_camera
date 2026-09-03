@@ -197,6 +197,7 @@ bool Capture::open(int32_t device_id)
         return false;
     }
 
+    configureRawDecode();
     loadCameraInfo();
     return true;
 }
@@ -223,6 +224,7 @@ bool Capture::open(const std::string& port)
         return false;
     }
 
+    configureRawDecode();
     loadCameraInfo();
     return true;
 }
@@ -268,7 +270,28 @@ bool Capture::capture(bool flip_vertical, bool flip_horizontal)
 {
     try
     {
-        if (!cap_.retrieve(bridge_.image)) return false;
+        if (raw_mjpg_)
+        {
+            // Raw compressed buffer: Mat(1, bytesused, CV_8U) wrapping the V4L2 mmap area.
+            cv::Mat raw;
+            if (!cap_.retrieve(raw) || raw.empty()) return false;
+            const size_t n = raw.total() * raw.elemSize();
+            const size_t max_n = static_cast<size_t>(cap_.get(cv::CAP_PROP_FRAME_WIDTH)) *
+                                     static_cast<size_t>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT)) * 2 +
+                                 4096;
+            if (n < 4 || n > max_n || raw.data[0] != 0xFF || raw.data[1] != 0xD8)
+            {
+                RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000,
+                                     "[%s] dropping invalid MJPG frame (%zu bytes)", node_->get_name(), n);
+                return false;
+            }
+            cv::imdecode(raw, cv::IMREAD_COLOR, &bridge_.image);
+            if (bridge_.image.empty()) return false;
+        }
+        else if (!cap_.retrieve(bridge_.image))
+        {
+            return false;
+        }
     } catch (const cv::Exception& e)
     {
         RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, "[%s] retrieve threw: %s",
@@ -777,3 +800,13 @@ bool Capture::isFrameStale()
 }
 
 }  // namespace cv_camera
+
+void Capture::configureRawDecode()
+{
+    const int fcc = static_cast<int>(cap_.get(cv::CAP_PROP_FOURCC));
+    const std::string fourcc{static_cast<char>(fcc & 0xFF), static_cast<char>((fcc >> 8) & 0xFF),
+                             static_cast<char>((fcc >> 16) & 0xFF), static_cast<char>((fcc >> 24) & 0xFF)};
+    raw_mjpg_ = (fourcc == "MJPG") && cap_.set(cv::CAP_PROP_CONVERT_RGB, 0);
+    RCLCPP_INFO(node_->get_logger(), "[%s] fourcc %s, raw MJPG decode %s", node_->get_name(), fourcc.c_str(),
+                raw_mjpg_ ? "enabled" : "disabled");
+}
