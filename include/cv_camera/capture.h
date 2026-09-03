@@ -15,6 +15,7 @@
 #include <sensor_msgs/msg/camera_info.hpp>
 #include "cv_camera/srv/grab_frame.hpp"
 #include "opencv2/opencv.hpp"
+#include <opencv2/imgcodecs.hpp>
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/u_int8.hpp"
 #include "std_srvs/srv/set_bool.hpp"
