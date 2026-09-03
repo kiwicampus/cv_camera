@@ -799,8 +799,6 @@ bool Capture::isFrameStale()
                        [](bool looked_frozen) { return looked_frozen; });
 }
 
-}  // namespace cv_camera
-
 void Capture::configureRawDecode()
 {
     const int fcc = static_cast<int>(cap_.get(cv::CAP_PROP_FOURCC));
@@ -810,3 +808,5 @@ void Capture::configureRawDecode()
     RCLCPP_INFO(node_->get_logger(), "[%s] fourcc %s, raw MJPG decode %s", node_->get_name(), fourcc.c_str(),
                 raw_mjpg_ ? "enabled" : "disabled");
 }
+
+}  // namespace cv_camera
