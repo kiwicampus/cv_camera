@@ -197,7 +197,9 @@ bool Capture::open(int32_t device_id)
         return false;
     }
 
-    configureRawDecode();
+    // configureRawDecode() is NOT called here: Driver::setup() applies cv::CAP_PROP_FOURCC after
+    // this returns, so the fourcc is still the uvcvideo default at this point. Driver::setup()
+    // calls it once every property is in place.
     loadCameraInfo();
     return true;
 }
@@ -224,7 +226,9 @@ bool Capture::open(const std::string& port)
         return false;
     }
 
-    configureRawDecode();
+    // configureRawDecode() is NOT called here: Driver::setup() applies cv::CAP_PROP_FOURCC after
+    // this returns, so the fourcc is still the uvcvideo default at this point. Driver::setup()
+    // calls it once every property is in place.
     loadCameraInfo();
     return true;
 }
@@ -266,6 +270,10 @@ bool Capture::grab()
     }
 }
 
+// Ceiling used when CAP_PROP_FRAME_WIDTH/HEIGHT are not usable: 8 MB is far above any MJPG frame
+// these cameras produce, and still small enough to catch a runaway bytesused from uvcvideo.
+static constexpr size_t RAW_MJPG_FALLBACK_MAX_BYTES = 8u * 1024u * 1024u;
+
 bool Capture::capture(bool flip_vertical, bool flip_horizontal)
 {
     try
@@ -276,9 +284,15 @@ bool Capture::capture(bool flip_vertical, bool flip_horizontal)
             cv::Mat raw;
             if (!cap_.retrieve(raw) || raw.empty()) return false;
             const size_t n = raw.total() * raw.elemSize();
-            const size_t max_n = static_cast<size_t>(cap_.get(cv::CAP_PROP_FRAME_WIDTH)) *
-                                     static_cast<size_t>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT)) * 2 +
-                                 4096;
+            // Upper bound on a sane JPEG for this geometry. With CAP_PROP_CONVERT_RGB cleared the
+            // V4L2 backend can report the raw buffer geometry instead of the image size, so a
+            // non-positive width or height must NOT collapse max_n to 4096 - that would reject
+            // every frame and blank the camera. Fall back to a flat ceiling in that case.
+            const double prop_w = cap_.get(cv::CAP_PROP_FRAME_WIDTH);
+            const double prop_h = cap_.get(cv::CAP_PROP_FRAME_HEIGHT);
+            const size_t max_n = (prop_w > 0.0 && prop_h > 0.0)
+                                     ? static_cast<size_t>(prop_w) * static_cast<size_t>(prop_h) * 2 + 4096
+                                     : RAW_MJPG_FALLBACK_MAX_BYTES;
             if (n < 4 || n > max_n || raw.data[0] != 0xFF || raw.data[1] != 0xD8)
             {
                 RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000,
@@ -801,6 +815,10 @@ bool Capture::isFrameStale()
 
 void Capture::configureRawDecode()
 {
+    // Video playback keeps OpenCV's own decoding: a container may report an MJPG fourcc, and
+    // clearing CAP_PROP_CONVERT_RGB there would hand us frames the raw path cannot validate.
+    if (video_path_ != "") return;
+
     const int fcc = static_cast<int>(cap_.get(cv::CAP_PROP_FOURCC));
     const std::string fourcc{static_cast<char>(fcc & 0xFF), static_cast<char>((fcc >> 8) & 0xFF),
                              static_cast<char>((fcc >> 16) & 0xFF), static_cast<char>((fcc >> 24) & 0xFF)};

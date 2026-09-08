@@ -187,6 +187,12 @@ bool Driver::setup()
     camera_->setPropertyFromParam(cv::CAP_PROP_BUFFERSIZE, "cv_cap_prop_buffersize");
 #endif  // CV_CAP_PROP_BUFFERSIZE
 
+  // Every cv::CAP_PROP_* is applied by now, so the fourcc finally reflects the "fourcc" parameter
+  // ([M,J,P,G] for all cameras). Latch the raw MJPG decode path here, never inside Capture::open():
+  // there the device still reported the uvcvideo default YUYV, raw_mjpg_ stayed false on MJPG
+  // cameras, and OpenCV's internal imdecode threw "buf.checkVector(1, CV_8U) > 0" on short buffers.
+  camera_->configureRawDecode();
+
   // Timers
   read_tmr_ =
     this->create_wall_timer(std::chrono::milliseconds(int(1000.0 / read_rate_)), std::bind(&Driver::read, this));
