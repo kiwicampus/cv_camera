@@ -454,6 +454,19 @@ class Capture
     bool raw_mjpg_ = false;
 
     /**
+     * @brief Saturation latches for custom_roi_exposure().
+     *
+     * The ROI exposure loop walks V4L2_CID_EXPOSURE_ABSOLUTE by +/-1 every frame with no bound.
+     * Once it reaches the device's min or max the camera STALLs the control write, which uvcvideo
+     * reports as "Failed to query (SET_CUR) UVC control 4 on unit 1: -32" (EPIPE). 75 of those in
+     * one boot on 4F042. OpenCV exposes no way to read a control's range, so instead we read the
+     * value back after a write: if it did not move, we are at that rail and stop pushing further
+     * in the same direction until a write in the other direction succeeds.
+     */
+    bool exposure_at_max_ = false;
+    bool exposure_at_min_ = false;
+
+    /**
      * @brief this stores last captured image.
      */
     cv_bridge::CvImage bridge_;

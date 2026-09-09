@@ -388,20 +388,47 @@ void Capture::custom_roi_exposure(cv::Mat& frame)
         }
     }
 
+    double step = 0.0;
     if (underExposedPixels > underExposedThreshold)
     {  // underexposed
         RCLCPP_DEBUG(node_->get_logger(), "[%s] Underexposed: %f vs cap exposure: %f", node_->get_name(),
-                     underExposedPixels, cap_.get(cv::CAP_PROP_EXPOSURE));
-        exposure += 1;
+                     underExposedPixels, exposure);
+        step = 1.0;
     }
     else if (overExposedPixels > overExposedThreshold)
     {  // overexposed
         RCLCPP_DEBUG(node_->get_logger(), "[%s] Overexposed: %f vs cap exposure: %f", node_->get_name(),
-                     overExposedPixels, cap_.get(cv::CAP_PROP_EXPOSURE));
-        exposure -= 1;
+                     overExposedPixels, exposure);
+        step = -1.0;
     }
 
-    cap_.set(cv::CAP_PROP_EXPOSURE, exposure);  // set new exposure
+    if (step == 0.0) return;
+
+    // Stop at the rails. This loop used to add or subtract 1 every frame without any bound, so on
+    // a persistently bright or dark scene it walked past the device's exposure range and the camera
+    // STALLed every write: "Failed to query (SET_CUR) UVC control 4 on unit 1: -32" (EPIPE), 75
+    // times in one boot on 4F042. OpenCV cannot report a control's range, so read the value back
+    // and latch the direction that no longer moves.
+    if ((step > 0.0 && exposure_at_max_) || (step < 0.0 && exposure_at_min_)) return;
+
+    cap_.set(cv::CAP_PROP_EXPOSURE, exposure + step);  // set new exposure
+    const double applied = cap_.get(cv::CAP_PROP_EXPOSURE);
+    if (applied == exposure)
+    {
+        // The device kept its old value, so this direction is exhausted.
+        if (step > 0.0)
+            exposure_at_max_ = true;
+        else
+            exposure_at_min_ = true;
+        RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 30000,
+                             "[%s] exposure %f is at the device limit, stopping adjustment in that direction",
+                             node_->get_name(), exposure);
+    }
+    else
+    {
+        exposure_at_max_ = false;
+        exposure_at_min_ = false;
+    }
 }
 
 void Capture::rectify()
