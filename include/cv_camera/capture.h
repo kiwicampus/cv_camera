@@ -13,6 +13,7 @@
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 #include "opencv2/opencv.hpp"
+#include "opencv2/imgcodecs.hpp"
 #include <camera_info_manager/camera_info_manager.hpp>
 #include "std_msgs/msg/u_int8.hpp"
 #include "std_msgs/msg/bool.hpp"
@@ -329,6 +330,19 @@ public:
    * @return True if image is focused, false otherwise
    */
   bool isFocused();
+  /**
+   * @brief Latch whether we decode MJPG buffers ourselves, and turn OpenCV's own conversion off.
+   *
+   * Call this only AFTER every cv::CAP_PROP_* parameter has been applied. Driver::setup() sets
+   * CAP_PROP_FOURCC from the "fourcc" parameter ([M,J,P,G] for every camera in
+   * vision_bringup/params/vision_params.yaml) only after Capture::open() returns, so reading the
+   * fourcc inside open() saw the uvcvideo default of YUYV. raw_mjpg_ stayed false on cameras that
+   * really do stream MJPG, the size and 0xFFD8 marker validation in capture() never ran, and
+   * OpenCV's V4L2 backend kept doing its own internal imdecode - which throws
+   * "buf.checkVector(1, CV_8U) > 0" on a short buffer and burns CPU on a JPEG to BGR conversion
+   * for every frame of every camera.
+   */
+  void configureRawDecode();
 
 private:
 
@@ -451,6 +465,25 @@ private:
    * @brief capture device.
    */
   cv::VideoCapture cap_;
+
+  /**
+   * @brief JP5: decode MJPG frames ourselves (CAP_PROP_CONVERT_RGB=0) with size/marker validation.
+   * OpenCV 4.11's V4L2 backend segfaults in imdecode when uvcvideo (5.10) reports a bogus bytesused.
+   */
+  bool raw_mjpg_ = false;
+
+  /**
+   * @brief Saturation latches for custom_roi_exposure().
+   *
+   * The ROI exposure loop walks V4L2_CID_EXPOSURE_ABSOLUTE by +/-1 every frame with no bound.
+   * Once it reaches the device's min or max the camera STALLs the control write, which uvcvideo
+   * reports as "Failed to query (SET_CUR) UVC control 4 on unit 1: -32" (EPIPE). 75 of those in
+   * one boot on 4F042. OpenCV exposes no way to read a control's range, so instead we read the
+   * value back after a write: if it did not move, we are at that rail and stop pushing further
+   * in the same direction until a write in the other direction succeeds.
+   */
+  bool exposure_at_max_ = false;
+  bool exposure_at_min_ = false;
 
   /**
    * @brief this stores last captured image.

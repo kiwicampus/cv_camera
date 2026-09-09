@@ -192,6 +192,9 @@ bool Capture::open(int32_t device_id)
     return false;
   }
   
+  // configureRawDecode() is NOT called here: Driver::setup() applies cv::CAP_PROP_FOURCC after
+  // this returns, so the fourcc is still the uvcvideo default at this point. Driver::setup()
+  // calls it once every property is in place.
   loadCameraInfo();
   return true;
 }
@@ -217,6 +220,9 @@ bool Capture::open(const std::string &port)
     return false;
   }
   
+  // configureRawDecode() is NOT called here: Driver::setup() applies cv::CAP_PROP_FOURCC after
+  // this returns, so the fourcc is still the uvcvideo default at this point. Driver::setup()
+  // calls it once every property is in place.
   loadCameraInfo();
   return true;
 }
@@ -248,12 +254,58 @@ bool Capture::grab()
     cap_.set(cv::CAP_PROP_POS_FRAMES, 0);
   }
 
-  return cap_.grab();
+  // OpenCV 4.11 (JP5) throws cv::Exception from the V4L2 MJPG path when the camera returns an empty
+  // frame (imdecode assertion); uncaught it aborts the whole component container (2026-09-03).
+  try
+  {
+    return cap_.grab();
+  }
+  catch (const cv::Exception& e)
+  {
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, "[%s] grab threw: %s", node_->get_name(), e.what());
+    return false;
+  }
 }
+
+// Ceiling used when CAP_PROP_FRAME_WIDTH/HEIGHT are not usable: 8 MB is far above any MJPG frame
+// these cameras produce, and still small enough to catch a runaway bytesused from uvcvideo.
+static constexpr size_t RAW_MJPG_FALLBACK_MAX_BYTES = 8u * 1024u * 1024u;
 
 bool Capture::capture(bool flip_vertical, bool flip_horizontal)
 {
-  if (!cap_.retrieve(bridge_.image)) return false;
+  try
+  {
+    if (raw_mjpg_)
+    {
+      // Raw compressed buffer: Mat(1, bytesused, CV_8U) wrapping the V4L2 mmap area.
+      cv::Mat raw;
+      if (!cap_.retrieve(raw) || raw.empty()) return false;
+      const size_t n = raw.total() * raw.elemSize();
+      // Upper bound on a sane JPEG for this geometry. With CAP_PROP_CONVERT_RGB cleared the
+      // V4L2 backend can report the raw buffer geometry instead of the image size, so a
+      // non-positive width or height must NOT collapse max_n to 4096 - that would reject
+      // every frame and blank the camera. Fall back to a flat ceiling in that case.
+      const double prop_w = cap_.get(cv::CAP_PROP_FRAME_WIDTH);
+      const double prop_h = cap_.get(cv::CAP_PROP_FRAME_HEIGHT);
+      const size_t max_n = (prop_w > 0.0 && prop_h > 0.0) ? static_cast<size_t>(prop_w) * static_cast<size_t>(prop_h) * 2 + 4096 : RAW_MJPG_FALLBACK_MAX_BYTES;
+      if (n < 4 || n > max_n || raw.data[0] != 0xFF || raw.data[1] != 0xD8)
+      {
+        RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, "[%s] dropping invalid MJPG frame (%zu bytes)", node_->get_name(), n);
+        return false;
+      }
+      cv::imdecode(raw, cv::IMREAD_COLOR, &bridge_.image);
+      if (bridge_.image.empty()) return false;
+    }
+    else if (!cap_.retrieve(bridge_.image))
+    {
+      return false;
+    }
+  }
+  catch (const cv::Exception& e)
+  {
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, "[%s] retrieve threw: %s", node_->get_name(), e.what());
+    return false;
+  }
   if (flip_vertical) cv::flip(bridge_.image, bridge_.image, 0);
   if (flip_horizontal) cv::flip(bridge_.image, bridge_.image, 1);
 
@@ -326,15 +378,40 @@ void Capture::custom_roi_exposure(cv::Mat& frame)
       }
   }
 
+  double step = 0.0;
   if (underExposedPixels > underExposedThreshold) {  // underexposed
-      RCLCPP_DEBUG(node_->get_logger(), "[%s] Underexposed: %f vs cap exposure: %f", node_->get_name(), underExposedPixels, cap_.get(cv::CAP_PROP_EXPOSURE));
-      exposure += 1;
+      RCLCPP_DEBUG(node_->get_logger(), "[%s] Underexposed: %f vs cap exposure: %f", node_->get_name(), underExposedPixels, exposure);
+      step = 1.0;
   } else if (overExposedPixels > overExposedThreshold) {  // overexposed
-      RCLCPP_DEBUG(node_->get_logger(), "[%s] Overexposed: %f vs cap exposure: %f", node_->get_name(), overExposedPixels, cap_.get(cv::CAP_PROP_EXPOSURE));
-      exposure -= 1;
+      RCLCPP_DEBUG(node_->get_logger(), "[%s] Overexposed: %f vs cap exposure: %f", node_->get_name(), overExposedPixels, exposure);
+      step = -1.0;
   }
 
-  cap_.set(cv::CAP_PROP_EXPOSURE, exposure);  // set new exposure
+  if (step == 0.0) return;
+
+  // Stop at the rails. This loop used to add or subtract 1 every frame without any bound, so on
+  // a persistently bright or dark scene it walked past the device's exposure range and the camera
+  // STALLed every write: "Failed to query (SET_CUR) UVC control 4 on unit 1: -32" (EPIPE), 75
+  // times in one boot on 4F042. OpenCV cannot report a control's range, so read the value back
+  // and latch the direction that no longer moves.
+  if ((step > 0.0 && exposure_at_max_) || (step < 0.0 && exposure_at_min_)) return;
+
+  cap_.set(cv::CAP_PROP_EXPOSURE, exposure + step);  // set new exposure
+  const double applied = cap_.get(cv::CAP_PROP_EXPOSURE);
+  if (applied == exposure)
+  {
+    // The device kept its old value, so this direction is exhausted.
+    if (step > 0.0)
+      exposure_at_max_ = true;
+    else
+      exposure_at_min_ = true;
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 30000, "[%s] exposure %f is at the device limit, stopping adjustment in that direction", node_->get_name(), exposure);
+  }
+  else
+  {
+    exposure_at_max_ = false;
+    exposure_at_min_ = false;
+  }
 }
 
 
@@ -751,6 +828,19 @@ bool Capture::isFrameStale()
   if (stale_sample_window_.size() < stale_window_size_) return false;
   return std::all_of(stale_sample_window_.begin(), stale_sample_window_.end(),
                       [](bool looked_frozen) { return looked_frozen; });
+}
+
+void Capture::configureRawDecode()
+{
+  // Video playback keeps OpenCV's own decoding: a container may report an MJPG fourcc, and
+  // clearing CAP_PROP_CONVERT_RGB there would hand us frames the raw path cannot validate.
+  if (video_path_ != "") return;
+
+  const int fcc = static_cast<int>(cap_.get(cv::CAP_PROP_FOURCC));
+  const std::string fourcc{static_cast<char>(fcc & 0xFF), static_cast<char>((fcc >> 8) & 0xFF),
+                           static_cast<char>((fcc >> 16) & 0xFF), static_cast<char>((fcc >> 24) & 0xFF)};
+  raw_mjpg_ = (fourcc == "MJPG") && cap_.set(cv::CAP_PROP_CONVERT_RGB, 0);
+  RCLCPP_INFO(node_->get_logger(), "[%s] fourcc %s, raw MJPG decode %s", node_->get_name(), fourcc.c_str(), raw_mjpg_ ? "enabled" : "disabled");
 }
 
 }  // namespace cv_camera
