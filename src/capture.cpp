@@ -1,6 +1,7 @@
 // Copyright [2015] Takashi Ogura<t.ogura@gmail.com>
 
 #include "cv_camera/capture.h"
+#include <algorithm>
 #include <sstream>
 #include <string>
 
@@ -9,8 +10,8 @@ namespace cv_camera
 
 namespace enc = sensor_msgs::image_encodings;
 
-Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name, 
-                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, double stale_frame_threshold, uint32_t buffer_size)
+Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name,
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, int stale_pixel_intensity_threshold, double stale_min_changed_pixels_pct, int stale_window_size, uint32_t buffer_size)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
@@ -20,7 +21,9 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
       roi_exposure_(roi_exposure),
       focus_threshold_(focus_threshold),
       check_focus_in_img_center_(check_focus_in_img_center),
-      stale_frame_threshold_(stale_frame_threshold),
+      stale_pixel_intensity_threshold_(stale_pixel_intensity_threshold),
+      stale_min_changed_pixels_pct_(stale_min_changed_pixels_pct),
+      stale_window_size_(static_cast<size_t>(stale_window_size)),
       buffer_size_(buffer_size),
       info_manager_(node_.get(), frame_id),
       capture_delay_(rclcpp::Duration(0, 0.0))
@@ -250,9 +253,6 @@ bool Capture::grab()
 
 bool Capture::capture(bool flip_vertical, bool flip_horizontal)
 {
-  // Store previous frame before getting new one
-  previous_bridge_.image = bridge_.image.clone();
-  
   if (!cap_.retrieve(bridge_.image)) return false;
   if (flip_vertical) cv::flip(bridge_.image, bridge_.image, 0);
   if (flip_horizontal) cv::flip(bridge_.image, bridge_.image, 1);
@@ -459,9 +459,20 @@ void Capture::setCheckFocusInImgCenter(bool check_focus_in_img_center)
   check_focus_in_img_center_ = check_focus_in_img_center;
 }
 
-void Capture::setStaleFrameThreshold(double stale_frame_threshold)
+void Capture::setStalePixelIntensityThreshold(int stale_pixel_intensity_threshold)
 {
-  stale_frame_threshold_ = stale_frame_threshold;
+  stale_pixel_intensity_threshold_ = stale_pixel_intensity_threshold;
+}
+
+void Capture::setStaleMinChangedPixelsPct(double stale_min_changed_pixels_pct)
+{
+  stale_min_changed_pixels_pct_ = stale_min_changed_pixels_pct;
+}
+
+void Capture::setStaleWindowSize(int stale_window_size)
+{
+  stale_window_size_ = static_cast<size_t>(stale_window_size);
+  stale_sample_window_.clear();
 }
 
 std::string Capture::execute_command(const char* command)
@@ -669,28 +680,77 @@ double Capture::getBrennerScore(){
   return mean_focus_value;
 }
 
+double Capture::computeChangedPixelsPct(const cv::Mat &current, const cv::Mat &previous, int intensity_threshold)
+{
+  cv::Mat current_small, previous_small, current_gray, previous_gray, diff, thresholded;
+
+  cv::resize(current, current_small, cv::Size(64, 64), 0, 0, cv::INTER_AREA);
+  cv::resize(previous, previous_small, cv::Size(64, 64), 0, 0, cv::INTER_AREA);
+
+  cv::cvtColor(current_small, current_gray, cv::COLOR_BGR2GRAY);
+  cv::cvtColor(previous_small, previous_gray, cv::COLOR_BGR2GRAY);
+
+  cv::absdiff(current_gray, previous_gray, diff);
+  cv::threshold(diff, thresholded, intensity_threshold, 255, cv::THRESH_BINARY);
+
+  int changed_pixels = cv::countNonZero(thresholded);
+  int total_pixels = thresholded.rows * thresholded.cols;
+
+  return (static_cast<double>(changed_pixels) / total_pixels) * 100.0;
+}
+
+void Capture::updateStaleFrameEvidence()
+{
+  // First sample ever (or right after a reset)
+  if (!has_prior_sample_)
+  {
+    if (bridge_.image.empty()) return;
+    previous_bridge_.image = bridge_.image.clone();
+    has_prior_sample_ = true;
+    return;
+  }
+
+  // true  = this sample looked "frozen" (too little change) -> a vote TOWARD stale
+  // false = this sample showed real change                  -> a vote AGAINST stale
+  bool sample_looked_frozen;
+
+  if (bridge_.image.empty() || previous_bridge_.image.empty() ||
+      bridge_.image.size() != previous_bridge_.image.size() ||
+      bridge_.image.type() != previous_bridge_.image.type())
+  {
+    // Can't tell maybe some (resolution/format change, reconnection, etc.)
+    sample_looked_frozen = false;
+  }
+  else
+  {
+    double changed_pct = computeChangedPixelsPct(bridge_.image, previous_bridge_.image, stale_pixel_intensity_threshold_);
+    sample_looked_frozen = changed_pct < stale_min_changed_pixels_pct_;
+    RCLCPP_DEBUG(node_->get_logger(), "[%s] stale-check sample: changed_pct=%.3f%% (min=%.3f%%) -> %s", frame_id_.c_str(),
+                 changed_pct, stale_min_changed_pixels_pct_, sample_looked_frozen ? "frozen" : "changed");
+  }
+
+  stale_sample_window_.push_back(sample_looked_frozen);
+  while (stale_sample_window_.size() > stale_window_size_)
+  {
+    stale_sample_window_.pop_front();
+  }
+
+  previous_bridge_.image = bridge_.image.clone();
+}
+
+void Capture::resetStaleEvidence()
+{
+  stale_sample_window_.clear();
+  has_prior_sample_ = false;
+}
+
 bool Capture::isFrameStale()
 {
-    // If previous frame is empty, this is the first frame
-    if (previous_bridge_.image.empty())
-    {
-        return false;
-    }
-    
-    // Compare current frame with previous frame
-    cv::Mat diff;
-    cv::absdiff(bridge_.image, previous_bridge_.image, diff);
-    
-    // Calculate mean difference across all color channels (B,G,R)
-    cv::Scalar mean_diff = cv::mean(diff);
-    double avg_diff = (mean_diff[0] + mean_diff[1] + mean_diff[2]) / 3.0;
-    double diff_percentage = (avg_diff / 255.0) * 100.0;
-    
-    // diff_percentage represents how different the frames are (0-100)
-    // 0%: frames are identical
-    // 100%: maximum possible difference
-    // Threshold is in percentage - frames with difference below threshold are considered stale
-    return diff_percentage < stale_frame_threshold_;
+  // Stale only once the window is full AND every single sample looked frozen,
+  // one sample with real change (false) anywhere in the window clears it.
+  if (stale_sample_window_.size() < stale_window_size_) return false;
+  return std::all_of(stale_sample_window_.begin(), stale_sample_window_.end(),
+                      [](bool looked_frozen) { return looked_frozen; });
 }
 
 }  // namespace cv_camera

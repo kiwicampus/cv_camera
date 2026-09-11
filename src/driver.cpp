@@ -52,7 +52,11 @@ void Driver::parameters_setup()
   param_manager_.addParameter(video_stream_recovery_tries_, "video_stream_recovery_tries", 10);
   param_manager_.addParameter(focus_threshold_, "focus_threshold", 100.0);
   param_manager_.addParameter(check_focus_in_img_center_, "check_focus_in_img_center", false);
-  param_manager_.addParameter(stale_frame_threshold_, "stale_frame_threshold", 0.8);
+  param_manager_.addParameter(stale_check_interval_sec_, "stale_check_interval_sec", 1.0);
+  param_manager_.addParameter(stale_pixel_intensity_threshold_, "stale_pixel_intensity_threshold", 10);
+  param_manager_.addParameter(stale_min_changed_pixels_pct_, "stale_min_changed_pixels_pct", 0.3);
+  param_manager_.addParameter(stale_window_size_, "stale_window_size", 5);
+  param_manager_.addParameter(stale_check_enabled_, "stale_check_enabled", true);
 
   // Video capture parameters
   param_manager_.addParameter(width_, "width", 640);
@@ -70,9 +74,17 @@ void Driver::parameters_setup()
   param_manager_.addParameter(cv_cap_prop_auto_exposure_, "cv_cap_prop_auto_exposure", 3.0f);
 
   // Subscribers
-  undistort_req_sub_ = 
-    this->create_subscription<std_msgs::msg::Bool>("/video_mapping/un_distort", 1, 
+  undistort_req_sub_ =
+    this->create_subscription<std_msgs::msg::Bool>("/video_mapping/un_distort", 1,
                     [&](const std_msgs::msg::Bool::SharedPtr msg) -> void { undistort_img_req_bool_ = msg->data; });
+
+  // In intra process communication, we cant use transient local,
+  // so we disable the intra process for this subscription
+  rclcpp::SubscriptionOptionsWithAllocator<std::allocator<void>> sub_options;
+  sub_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
+  stale_sampling_enabled_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+    "/stale_sampling", rclcpp::QoS(1).transient_local().reliable(),
+    [&](const std_msgs::msg::Bool::SharedPtr msg) -> void { stale_sampling_enabled_ = msg->data; }, sub_options);
 
   // Publishers
   // In intra process communication, we cant use transient local,
@@ -81,6 +93,13 @@ void Driver::parameters_setup()
   options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
   pub_cam_status_ = this->create_publisher<std_msgs::msg::UInt8>("/video_mapping" + name_ + "/status", rclcpp::QoS(1).keep_all().transient_local().reliable(), options);
   pub_cam_diagnostic_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics", 1);
+  pub_frame_stale_ = this->create_publisher<std_msgs::msg::Bool>(
+    "/video_mapping" + name_ + "/frame_stale", rclcpp::QoS(1).transient_local().reliable(), options);
+
+  // Seed the latched stale topic so late joiners always see a defined state
+  std_msgs::msg::Bool stale_msg;
+  stale_msg.data = false;
+  pub_frame_stale_->publish(stale_msg);
 
   // Services
   restart_srv_ = this->create_service<std_srvs::srv::Trigger>(
@@ -114,7 +133,9 @@ bool Driver::setup()
                             roi_exposure_,
                             focus_threshold_,
                             check_focus_in_img_center_,
-                            stale_frame_threshold_,
+                            stale_pixel_intensity_threshold_,
+                            stale_min_changed_pixels_pct_,
+                            stale_window_size_,
                             PUBLISHER_BUFFER_SIZE));
 
   if (video_path_ != "")
@@ -174,6 +195,12 @@ bool Driver::setup()
   update_resolution_tmr_ =
     this->create_wall_timer(std::chrono::milliseconds(200), std::bind(&Driver::update_resolution, this));
   update_resolution_tmr_->cancel();
+  // Runs independently of read_tmr_/publish_tmr_
+  if (stale_frame_check_ && stale_check_enabled_)
+  {
+    stale_check_tmr_ = this->create_wall_timer(std::chrono::duration<double>(stale_check_interval_sec_),
+                                                std::bind(&Driver::staleCheckCb, this));
+  }
 
   cam_status_->data = ONLINE;
   pub_cam_status_->publish(*cam_status_);
@@ -204,6 +231,32 @@ void Driver::read()
   {
     camera_->close();
   }
+}
+
+void Driver::staleCheckCb()
+{
+  // skip while PAUSED: read_tmr_/publish_tmr_ are cancelled during a pause
+  if (!camera_->is_opened() || cam_status_->data == PAUSED) return;
+
+  // skip check if video_mapping isn't currently authorizing sampling
+  if (!stale_sampling_enabled_)
+  {
+    camera_->resetStaleEvidence();
+    publishStaleState(false);
+    return;
+  }
+
+  camera_->updateStaleFrameEvidence();
+  publishStaleState(camera_->isFrameStale());
+}
+
+void Driver::publishStaleState(bool stale)
+{
+  if (stale == last_stale_published_) return;
+  std_msgs::msg::Bool msg;
+  msg.data = stale;
+  pub_frame_stale_->publish(msg);
+  last_stale_published_ = stale;
 }
 
 void Driver::proceed()
@@ -383,10 +436,37 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         focus_threshold_ = parameter.as_double();
         camera_->setFocusThreshold(focus_threshold_);
       }
+      else if (name == "stale_check_interval_sec")
+      {
+        stale_check_interval_sec_ = parameter.as_double();
+        // No timer when the stale check is disabled via env var; nothing to recreate.
+        if (stale_check_tmr_)
+        {
+          RCLCPP_WARN(get_logger(), "Setting new stale check interval to %f", stale_check_interval_sec_);
+          stale_check_tmr_->cancel();
+          stale_check_tmr_ = this->create_wall_timer(std::chrono::duration<double>(stale_check_interval_sec_),
+                                                      std::bind(&Driver::staleCheckCb, this));
+        }
+      }
+      else if (name == "stale_min_changed_pixels_pct")
+      {
+        stale_min_changed_pixels_pct_ = parameter.as_double();
+        camera_->setStaleMinChangedPixelsPct(stale_min_changed_pixels_pct_);
+      }
     }
     else if (type == rclcpp::ParameterType::PARAMETER_INTEGER)
     {
-      if (name == "width")
+      if (name == "stale_pixel_intensity_threshold")
+      {
+        stale_pixel_intensity_threshold_ = parameter.as_int();
+        camera_->setStalePixelIntensityThreshold(stale_pixel_intensity_threshold_);
+      }
+      else if (name == "stale_window_size")
+      {
+        stale_window_size_ = parameter.as_int();
+        camera_->setStaleWindowSize(stale_window_size_);
+      }
+      else if (name == "width")
       {
         width_ = parameter.as_int();
         // update height to maintain aspect ratio
@@ -438,10 +518,21 @@ rcl_interfaces::msg::SetParametersResult Driver::parameters_cb(const std::vector
         check_focus_in_img_center_ = parameter.as_bool();
         camera_->setCheckFocusInImgCenter(check_focus_in_img_center_);
       }
-      else if (name == "stale_frame_threshold")
+      else if (name == "stale_check_enabled")
       {
-        stale_frame_threshold_ = parameter.as_double();
-        camera_->setStaleFrameThreshold(stale_frame_threshold_);
+        stale_check_enabled_ = parameter.as_bool();
+        if (stale_check_enabled_ && stale_frame_check_ && !stale_check_tmr_)
+        {
+          stale_check_tmr_ = this->create_wall_timer(std::chrono::duration<double>(stale_check_interval_sec_),
+                                                      std::bind(&Driver::staleCheckCb, this));
+        }
+        else if (!stale_check_enabled_ && stale_check_tmr_)
+        {
+          stale_check_tmr_->cancel();
+          stale_check_tmr_.reset();
+          camera_->resetStaleEvidence();
+          publishStaleState(false);
+        }
       }
     }
   }
@@ -553,6 +644,10 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
   {
     read_tmr_->cancel();
     publish_tmr_->cancel();
+    // Evidence gathered before the pause can't be told apart from a genuinely frozen
+    // camera once sampling stops, so it must not survive the pause.
+    camera_->resetStaleEvidence();
+    publishStaleState(false);
     cam_status_->data = PAUSED;
     pub_cam_status_->publish(*cam_status_);
     publish_diagnostic(PAUSED);
@@ -581,6 +676,8 @@ void Driver::ReleaseCamCb(shared_ptr_request_id const, shared_ptr_bool_request c
   {
     read_tmr_->cancel();
     publish_tmr_->cancel();
+    camera_->resetStaleEvidence();
+    publishStaleState(false);
     camera_->close();
     cam_status_->data = TURNED_OFF;
     pub_cam_status_->publish(*cam_status_);
@@ -606,6 +703,15 @@ void Driver::ReleaseCamCb(shared_ptr_request_id const, shared_ptr_bool_request c
 void Driver::isFrameStaleCb(shared_ptr_request_id const,  [[maybe_unused]] shared_ptr_bool_request const request,
                             shared_ptr_bool_response response)
 {
+  // While not ONLINE (paused, disconnected, lost...) sampling is stopped, so any
+  // window content predates the current state and must not be reported as stale.
+  if (cam_status_->data != ONLINE)
+  {
+    response->success = false;
+    response->message = "Camera is not online, no current stale evidence";
+    return;
+  }
+
   if (camera_->is_empty())
   {
     response->success = false;
