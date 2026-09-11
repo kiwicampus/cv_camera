@@ -59,6 +59,7 @@ public:
    * @param stale_min_changed_pixels_pct minimum percentage of changed pixels for a sample to count as "real change" rather than stale.
    * @param stale_window_size number of consecutive stale-check samples required, all unchanged, to report the camera as stale.
    * @param buffer_size size of publisher buffer.
+   * @param preferred_cam_format capture format (99% of the times MJPG)
    */
   Capture(rclcpp::Node::SharedPtr node,
           const std::string &img_topic_name,
@@ -71,7 +72,8 @@ public:
           int stale_pixel_intensity_threshold,
           double stale_min_changed_pixels_pct,
           int stale_window_size,
-          uint32_t buffer_size);
+          uint32_t buffer_size,
+          const std::string &preferred_cam_format);
 
   /**
    * @brief Open capture device with device ID.
@@ -105,7 +107,14 @@ public:
    * @return port::DeviceError device open failed
    */
   std::string det_device_path(const char* port);
-  
+
+  /**
+   * @brief Checks if a device supports the preferred format
+   * @param device_number video device number to check
+   * @return true if the device lists the preferred format among its formats
+   */
+  bool supportsPreferredFormat(int device_number);
+
   /**
    * @brief Load camera info from file.
    *
@@ -436,6 +445,11 @@ private:
    * @brief size of publisher buffer
    */
   uint32_t buffer_size_;
+
+  /**
+   * @brief preferred capture format (e.g. "MJPG") when resolving a port to a /dev/videoN
+   */
+  std::string preferred_cam_format_;
 
   /**
    * @brief image publisher created by image_transport::ImageTransport.

@@ -11,7 +11,7 @@ namespace cv_camera
 namespace enc = sensor_msgs::image_encodings;
 
 Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name,
-                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, int stale_pixel_intensity_threshold, double stale_min_changed_pixels_pct, int stale_window_size, uint32_t buffer_size)
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, int stale_pixel_intensity_threshold, double stale_min_changed_pixels_pct, int stale_window_size, uint32_t buffer_size, const std::string &preferred_cam_format)
     : node_(node),
       it_(node_),
       img_topic_name_(img_topic_name),
@@ -25,6 +25,7 @@ Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name
       stale_min_changed_pixels_pct_(stale_min_changed_pixels_pct),
       stale_window_size_(static_cast<size_t>(stale_window_size)),
       buffer_size_(buffer_size),
+      preferred_cam_format_(preferred_cam_format),
       info_manager_(node_.get(), frame_id),
       capture_delay_(rclcpp::Duration(0, 0.0))
 {
@@ -493,17 +494,16 @@ std::string Capture::execute_command(const char* command)
 
 std::string Capture::det_device_path(const char* port)
 {
-  std::string video_device = "-1";
   // TODO: instead of reading the output from shell, iter the directory
   std::string video_devices = execute_command("ls /dev/video*");
   std::string delimiter = "\n";
-  
+
   size_t pos = 0;
   std::string pre_token;
   std::string token;
   std::string output_command;
   std::vector<int> devices;
-  
+
   while ((pos = video_devices.find(delimiter)) != std::string::npos)
   {
     // get /dev/videoX substring
@@ -514,23 +514,41 @@ std::string Capture::det_device_path(const char* port)
 
     video_devices.erase(0, pos + delimiter.length());
   }
-  
+
   // Sort the vector to get devices in order
   std::sort(devices.begin(), devices.end());
-  
-  // Iter the devices to identify which port correspond to which videoX
+
+  // Collect every /dev/videoX whose USB path matches the given port -- a single physical
+  // camera can expose more than one video node (e.g. a capture node and a metadata-only node).
+  std::vector<int> matching_devices;
   for (const auto& cam : devices)
   {
     output_command = "udevadm info --query=path --name=/dev/video" + std::to_string(cam);
     std::string camera_device_info = execute_command(output_command.c_str());
     if (camera_device_info.find(port) != std::string::npos)
     {
-        video_device = std::to_string(cam);
-        return video_device;
+      matching_devices.push_back(cam);
     }
   }
-  
-  return video_device;
+
+  if (matching_devices.empty()) return "-1";
+
+  // Prefer the node that actually advertises our capture format; fall back to the first
+  // match if none do, so a device we can't format-probe for some reason still opens.
+  for (const auto& cam : matching_devices)
+  {
+    if (supportsPreferredFormat(cam)) return std::to_string(cam);
+  }
+
+  return std::to_string(matching_devices.front());
+}
+
+bool Capture::supportsPreferredFormat(int device_number)
+{
+  std::string output_command =
+      "v4l2-ctl --device=/dev/video" + std::to_string(device_number) + " --list-formats";
+  std::string formats = execute_command(output_command.c_str());
+  return formats.find(preferred_cam_format_) != std::string::npos;
 }
 
 std::string Capture::mat_type2encoding(int mat_type)
