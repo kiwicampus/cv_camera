@@ -518,8 +518,7 @@ std::string Capture::det_device_path(const char* port)
   // Sort the vector to get devices in order
   std::sort(devices.begin(), devices.end());
 
-  // Collect every /dev/videoX whose USB path matches the given port -- a single physical
-  // camera can expose more than one video node (e.g. a capture node and a metadata-only node).
+  // Collect every /dev/videoX whose USB path matches the given port 
   std::vector<int> matching_devices;
   for (const auto& cam : devices)
   {
