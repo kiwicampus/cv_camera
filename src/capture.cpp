@@ -284,6 +284,7 @@ bool Capture::grab()
   try
   {
     grab_pending_ = cap_.grab();
+    if (grab_pending_) stepAutoExposureRearm();
     return grab_pending_;
   }
   catch (const cv::Exception& e)
@@ -297,6 +298,30 @@ bool Capture::grab()
 bool Capture::hasPendingGrab() const
 {
   return grab_pending_;
+}
+
+void Capture::stepAutoExposureRearm()
+{
+  if (ae_rearm_pending_)
+  {
+    ae_rearm_pending_ = false;
+    ae_rearm_countdown_ = 0;
+    // Nothing to re-arm for video files, for the ROI exposure loop (it drives exposure by hand on
+    // every frame) or when the camera is configured for manual exposure.
+    double mode = 0.0;
+    if (video_path_ != "" || roi_exposure_ || !node_->get_parameter("cv_cap_prop_auto_exposure", mode) || mode <= 1.0)
+      return;
+    ae_rearm_mode_ = mode;
+    cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, 1.0);  // manual
+    ae_rearm_countdown_ = AE_REARM_FRAMES;
+    return;
+  }
+  if (ae_rearm_countdown_ > 0 && --ae_rearm_countdown_ == 0)
+  {
+    cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, ae_rearm_mode_);
+    RCLCPP_INFO(node_->get_logger(), "[%s] re-armed auto exposure (mode %.0f) after a stream restart", node_->get_name(),
+                ae_rearm_mode_);
+  }
 }
 
 // Ceiling used when CAP_PROP_FRAME_WIDTH/HEIGHT are not usable: 8 MB is far above any MJPG frame
@@ -544,7 +569,11 @@ bool Capture::setPropertyFromParam(int property_id, const std::string &param_nam
     if (node_->get_parameter(param_name, value))
     {
       const bool set_ok = cap_.set(property_id, value);
-      if (restartsStream(property_id)) grab_pending_ = false;
+      if (restartsStream(property_id))
+      {
+        grab_pending_ = false;
+        ae_rearm_pending_ = true;
+      }
       if (!set_ok && value != getProperty(property_id))
       {
         RCLCPP_ERROR(node_->get_logger(), "[%s] Setting with code %d and value %f failed", node_->get_name(), property_id, value);
