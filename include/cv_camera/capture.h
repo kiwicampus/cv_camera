@@ -173,6 +173,11 @@ public:
   bool grab();
 
   /**
+   * @brief Whether a grab() is waiting to be retrieved on the current stream.
+   */
+  bool hasPendingGrab() const;
+
+  /**
    * @brief Publish the image that is already captured by capture().
    *
    */
@@ -485,6 +490,34 @@ private:
    * OpenCV 4.11's V4L2 backend segfaults in imdecode when uvcvideo (5.10) reports a bogus bytesused.
    */
   bool raw_mjpg_ = false;
+
+  /**
+   * @brief cap_.set() that also handles the V4L2 stream restart some properties cause.
+   */
+  bool setCapProperty(int property_id, double value);
+
+  /**
+   * @brief Forget the pending grab and schedule an auto exposure re-arm.
+   *
+   * Setting the frame size, fps or fourcc on an open camera makes OpenCV restart the V4L2 stream
+   * and reallocate its buffers. Driver::read() grabs and Driver::proceed() retrieves from separate
+   * timers, so a grab from before the restart points to a buffer that no longer exists and must
+   * not be retrieved. The USB cameras also come out of the restart with their hardware auto
+   * exposure stuck (dark image while V4L2 still reports exposure_auto=3), and switching to manual
+   * and back for a moment gets it running again.
+   */
+  void onStreamRestart();
+
+  /**
+   * @brief Called on every grab: manual exposure on the first frame of a new stream, configured
+   * auto exposure mode AE_REARM_FRAMES frames later.
+   */
+  void stepAutoExposureRearm();
+
+  static constexpr int AE_REARM_FRAMES = 30;
+  bool grab_pending_ = false;
+  int ae_rearm_countdown_ = 0;
+  double ae_rearm_mode_ = 0.0;
 
   /**
    * @brief Saturation latches for custom_roi_exposure().
