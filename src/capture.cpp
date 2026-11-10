@@ -10,8 +10,7 @@ namespace cv_camera
 
 namespace enc = sensor_msgs::image_encodings;
 
-// Properties whose cap_.set() makes OpenCV's V4L2 backend stop the stream and reallocate its
-// buffers. Plain UVC controls (exposure, gain, brightness...) are applied on the running stream.
+// Properties whose cap_.set() makes OpenCV's V4L2 backend restart the stream.
 static bool restartsStream(int property_id)
 {
   switch (property_id)
@@ -116,9 +115,7 @@ void Capture::loadCameraInfo()
     {
       break;
     }
-    const bool set_ok = cap_.set(code, value);
-    if (restartsStream(code)) grab_pending_ = false;
-    if (!set_ok)
+    if (!setCapProperty(code, value))
     {
       RCLCPP_ERROR(node_->get_logger(), "[%s] Setting with code %d and value %f failed", node_->get_name(),code, value);
     }
@@ -284,7 +281,7 @@ bool Capture::grab()
   try
   {
     grab_pending_ = cap_.grab();
-    if (grab_pending_) stepAutoExposureRearm();
+    stepAutoExposureRearm();
     return grab_pending_;
   }
   catch (const cv::Exception& e)
@@ -295,43 +292,50 @@ bool Capture::grab()
   }
 }
 
+// Ceiling used when CAP_PROP_FRAME_WIDTH/HEIGHT are not usable: 8 MB is far above any MJPG frame
+// these cameras produce, and still small enough to catch a runaway bytesused from uvcvideo.
+static constexpr size_t RAW_MJPG_FALLBACK_MAX_BYTES = 8u * 1024u * 1024u;
+
 bool Capture::hasPendingGrab() const
 {
   return grab_pending_;
 }
 
-void Capture::stepAutoExposureRearm()
+bool Capture::setCapProperty(int property_id, double value)
 {
-  if (ae_rearm_pending_)
-  {
-    ae_rearm_pending_ = false;
-    ae_rearm_countdown_ = 0;
-    // Nothing to re-arm for video files, for the ROI exposure loop (it drives exposure by hand on
-    // every frame) or when the camera is configured for manual exposure.
-    double mode = 0.0;
-    if (video_path_ != "" || roi_exposure_ || !node_->get_parameter("cv_cap_prop_auto_exposure", mode) || mode <= 1.0)
-      return;
-    ae_rearm_mode_ = mode;
-    cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, 1.0);  // manual
-    ae_rearm_countdown_ = AE_REARM_FRAMES;
-    return;
-  }
-  if (ae_rearm_countdown_ > 0 && --ae_rearm_countdown_ == 0)
-  {
-    cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, ae_rearm_mode_);
-    RCLCPP_INFO(node_->get_logger(), "[%s] re-armed auto exposure (mode %.0f) after a stream restart", node_->get_name(),
-                ae_rearm_mode_);
-  }
+  const bool ok = cap_.set(property_id, value);
+  if (restartsStream(property_id)) onStreamRestart();
+  return ok;
 }
 
-// Ceiling used when CAP_PROP_FRAME_WIDTH/HEIGHT are not usable: 8 MB is far above any MJPG frame
-// these cameras produce, and still small enough to catch a runaway bytesused from uvcvideo.
-static constexpr size_t RAW_MJPG_FALLBACK_MAX_BYTES = 8u * 1024u * 1024u;
+void Capture::onStreamRestart()
+{
+  grab_pending_ = false;
+  ae_rearm_countdown_ = 0;
+
+  // Video files, the ROI exposure loop and manual exposure have no hardware auto exposure to re-arm.
+  if (video_path_ != "" || roi_exposure_) return;
+  if (!node_->get_parameter("cv_cap_prop_auto_exposure", ae_rearm_mode_) || ae_rearm_mode_ <= 1.0) return;
+
+  ae_rearm_countdown_ = AE_REARM_FRAMES;
+}
+
+void Capture::stepAutoExposureRearm()
+{
+  if (!grab_pending_ || ae_rearm_countdown_ == 0) return;
+
+  const bool first_frame = ae_rearm_countdown_ == AE_REARM_FRAMES;
+  --ae_rearm_countdown_;
+  if (first_frame) cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, 1.0);  // manual
+  if (ae_rearm_countdown_ > 0) return;
+
+  cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, ae_rearm_mode_);
+  RCLCPP_INFO(node_->get_logger(), "[%s] re-armed auto exposure after a stream restart", node_->get_name());
+}
 
 bool Capture::capture(bool flip_vertical, bool flip_horizontal)
 {
-  // Never retrieve a grab from before the last stream restart, see grab_pending_. Video files
-  // are left alone: they have no V4L2 buffers and Driver::proceed() retrieves them without a grab.
+  // Video files have no V4L2 buffers and are retrieved without a grab.
   if (video_path_.empty() && !grab_pending_) return false;
 
   try
@@ -568,13 +572,7 @@ bool Capture::setPropertyFromParam(int property_id, const std::string &param_nam
     double value = 0.0;
     if (node_->get_parameter(param_name, value))
     {
-      const bool set_ok = cap_.set(property_id, value);
-      if (restartsStream(property_id))
-      {
-        grab_pending_ = false;
-        ae_rearm_pending_ = true;
-      }
-      if (!set_ok && value != getProperty(property_id))
+      if (!setCapProperty(property_id, value) && value != getProperty(property_id))
       {
         RCLCPP_ERROR(node_->get_logger(), "[%s] Setting with code %d and value %f failed", node_->get_name(), property_id, value);
         return false;
@@ -923,8 +921,7 @@ void Capture::configureRawDecode()
   const int fcc = static_cast<int>(cap_.get(cv::CAP_PROP_FOURCC));
   const std::string fourcc{static_cast<char>(fcc & 0xFF), static_cast<char>((fcc >> 8) & 0xFF),
                            static_cast<char>((fcc >> 16) & 0xFF), static_cast<char>((fcc >> 24) & 0xFF)};
-  raw_mjpg_ = (fourcc == "MJPG") && cap_.set(cv::CAP_PROP_CONVERT_RGB, 0);
-  grab_pending_ = false;
+  raw_mjpg_ = (fourcc == "MJPG") && setCapProperty(cv::CAP_PROP_CONVERT_RGB, 0);
   RCLCPP_INFO(node_->get_logger(), "[%s] fourcc %s, raw MJPG decode %s", node_->get_name(), fourcc.c_str(), raw_mjpg_ ? "enabled" : "disabled");
 }
 

@@ -311,8 +311,7 @@ void Driver::proceed()
   }
   else
   {
-    // Nothing grabbed on the current stream yet: the camera was just opened, or a frame size, fps
-    // or fourcc change restarted the stream since the last read(). Wait for the next grab.
+    // The stream was just opened or restarted, wait for read() to grab a frame.
     if (!camera_->hasPendingGrab()) return;
 
     if (!camera_->capture(flip_vertical_, flip_horizontal_))

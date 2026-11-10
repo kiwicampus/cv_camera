@@ -173,10 +173,7 @@ public:
   bool grab();
 
   /**
-   * @brief Whether a grab() is waiting to be retrieved by capture() on the current stream.
-   *
-   * False after the camera is opened or closed, and after a property that restarts the V4L2 stream
-   * changes, until the next successful grab().
+   * @brief Whether a grab() is waiting to be retrieved on the current stream.
    */
   bool hasPendingGrab() const;
 
@@ -495,29 +492,30 @@ private:
   bool raw_mjpg_ = false;
 
   /**
-   * @brief True between a successful grab() and anything that restarts the V4L2 stream.
-   *
-   * Driver::read() grabs and Driver::proceed() retrieves from two different timers, and the
-   * parameter callback runs between them. Setting the frame size, fps or fourcc on an open camera
-   * makes OpenCV stop the stream and reallocate its mmap buffers, so a retrieve() after that copies
-   * from the buffer the old grab pointed at, which is no longer mapped. That segfaulted
-   * vision_kronos on every runtime resolution change of /rear (kiwicampus/Kronos-Project#6433).
+   * @brief cap_.set() that also handles the V4L2 stream restart some properties cause.
    */
-  bool grab_pending_ = false;
+  bool setCapProperty(int property_id, double value);
 
   /**
-   * @brief Re-arm the camera's own auto exposure after a stream restart, spread over the next grabs.
+   * @brief Forget the pending grab and schedule an auto exposure re-arm.
    *
-   * The rear USB cameras come out of a frame size change with their hardware auto exposure stuck,
-   * while V4L2 still reports exposure_auto=3, so the image stays almost black (docking at night
-   * switches /rear to 1280x720 and then never sees the AprilTag). Switching to manual and back
-   * restarts it, but only if the camera spends a moment in manual, so grab() sets manual on the
-   * first frame of the new stream and restores the configured mode AE_REARM_FRAMES grabs later.
+   * Setting the frame size, fps or fourcc on an open camera makes OpenCV restart the V4L2 stream
+   * and reallocate its buffers. Driver::read() grabs and Driver::proceed() retrieves from separate
+   * timers, so retrieving a grab from before the restart copies an unmapped buffer and segfaults.
+   * The USB cameras also come out of the restart with their hardware auto exposure stuck (black
+   * image while V4L2 still reports exposure_auto=3), which only switching to manual and back for
+   * a moment fixes. See kiwicampus/Kronos-Project#6433.
+   */
+  void onStreamRestart();
+
+  /**
+   * @brief Called on every grab: manual exposure on the first frame of a new stream, configured
+   * auto exposure mode AE_REARM_FRAMES frames later.
    */
   void stepAutoExposureRearm();
 
   static constexpr int AE_REARM_FRAMES = 30;
-  bool ae_rearm_pending_ = false;
+  bool grab_pending_ = false;
   int ae_rearm_countdown_ = 0;
   double ae_rearm_mode_ = 0.0;
 
