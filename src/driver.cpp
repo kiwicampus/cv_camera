@@ -311,6 +311,10 @@ void Driver::proceed()
   }
   else
   {
+    // Nothing grabbed on the current stream yet: the camera was just opened, or a frame size, fps
+    // or fourcc change restarted the stream since the last read(). Wait for the next grab.
+    if (!camera_->hasPendingGrab()) return;
+
     if (!camera_->capture(flip_vertical_, flip_horizontal_))
     {
       RCLCPP_WARN(get_logger(), "[%s] Couldn't capture frame", name_.c_str());

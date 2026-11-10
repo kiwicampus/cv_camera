@@ -173,6 +173,14 @@ public:
   bool grab();
 
   /**
+   * @brief Whether a grab() is waiting to be retrieved by capture() on the current stream.
+   *
+   * False after the camera is opened or closed, and after a property that restarts the V4L2 stream
+   * changes, until the next successful grab().
+   */
+  bool hasPendingGrab() const;
+
+  /**
    * @brief Publish the image that is already captured by capture().
    *
    */
@@ -485,6 +493,17 @@ private:
    * OpenCV 4.11's V4L2 backend segfaults in imdecode when uvcvideo (5.10) reports a bogus bytesused.
    */
   bool raw_mjpg_ = false;
+
+  /**
+   * @brief True between a successful grab() and anything that restarts the V4L2 stream.
+   *
+   * Driver::read() grabs and Driver::proceed() retrieves from two different timers, and the
+   * parameter callback runs between them. Setting the frame size, fps or fourcc on an open camera
+   * makes OpenCV stop the stream and reallocate its mmap buffers, so a retrieve() after that copies
+   * from the buffer the old grab pointed at, which is no longer mapped. That segfaulted
+   * vision_kronos on every runtime resolution change of /rear (kiwicampus/Kronos-Project#6433).
+   */
+  bool grab_pending_ = false;
 
   /**
    * @brief Saturation latches for custom_roi_exposure().

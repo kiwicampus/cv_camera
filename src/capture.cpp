@@ -10,6 +10,26 @@ namespace cv_camera
 
 namespace enc = sensor_msgs::image_encodings;
 
+// Properties whose cap_.set() makes OpenCV's V4L2 backend stop the stream and reallocate its
+// buffers. Plain UVC controls (exposure, gain, brightness...) are applied on the running stream.
+static bool restartsStream(int property_id)
+{
+  switch (property_id)
+  {
+    case cv::CAP_PROP_FRAME_WIDTH:
+    case cv::CAP_PROP_FRAME_HEIGHT:
+    case cv::CAP_PROP_FPS:
+    case cv::CAP_PROP_FOURCC:
+    case cv::CAP_PROP_FORMAT:
+    case cv::CAP_PROP_MODE:
+    case cv::CAP_PROP_CONVERT_RGB:
+    case cv::CAP_PROP_BUFFERSIZE:
+      return true;
+    default:
+      return false;
+  }
+}
+
 Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name,
                  const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, int stale_pixel_intensity_threshold, double stale_min_changed_pixels_pct, int stale_window_size, uint32_t buffer_size, const std::string &preferred_cam_format)
     : node_(node),
@@ -96,7 +116,9 @@ void Capture::loadCameraInfo()
     {
       break;
     }
-    if (!cap_.set(code, value))
+    const bool set_ok = cap_.set(code, value);
+    if (restartsStream(code)) grab_pending_ = false;
+    if (!set_ok)
     {
       RCLCPP_ERROR(node_->get_logger(), "[%s] Setting with code %d and value %f failed", node_->get_name(),code, value);
     }
@@ -188,6 +210,7 @@ bool Capture::rescaleFromFile(uint width, uint height)
 bool Capture::open(int32_t device_id)
 {
   cap_.open(device_id, cv::CAP_V4L2);
+  grab_pending_ = false;
   if (!cap_.isOpened())
   {
     return false;
@@ -215,6 +238,7 @@ bool Capture::open(const std::string &port)
   }
   
   cap_.open(device, cv::CAP_V4L2);
+  grab_pending_ = false;
   
   if (!cap_.isOpened())
   {
@@ -259,13 +283,20 @@ bool Capture::grab()
   // frame (imdecode assertion); uncaught it aborts the whole component container (2026-09-03).
   try
   {
-    return cap_.grab();
+    grab_pending_ = cap_.grab();
+    return grab_pending_;
   }
   catch (const cv::Exception& e)
   {
+    grab_pending_ = false;
     RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, "[%s] grab threw: %s", node_->get_name(), e.what());
     return false;
   }
+}
+
+bool Capture::hasPendingGrab() const
+{
+  return grab_pending_;
 }
 
 // Ceiling used when CAP_PROP_FRAME_WIDTH/HEIGHT are not usable: 8 MB is far above any MJPG frame
@@ -274,6 +305,10 @@ static constexpr size_t RAW_MJPG_FALLBACK_MAX_BYTES = 8u * 1024u * 1024u;
 
 bool Capture::capture(bool flip_vertical, bool flip_horizontal)
 {
+  // Never retrieve a grab from before the last stream restart, see grab_pending_. Video files
+  // are left alone: they have no V4L2 buffers and Driver::proceed() retrieves them without a grab.
+  if (video_path_.empty() && !grab_pending_) return false;
+
   try
   {
     if (raw_mjpg_)
@@ -459,6 +494,7 @@ void Capture::publish(sensor_msgs::msg::Image::UniquePtr msg)
 
 void Capture::close()
 {
+  grab_pending_ = false;
   cap_.release();
 }
 
@@ -507,7 +543,9 @@ bool Capture::setPropertyFromParam(int property_id, const std::string &param_nam
     double value = 0.0;
     if (node_->get_parameter(param_name, value))
     {
-      if (!cap_.set(property_id, value) && value != getProperty(property_id))
+      const bool set_ok = cap_.set(property_id, value);
+      if (restartsStream(property_id)) grab_pending_ = false;
+      if (!set_ok && value != getProperty(property_id))
       {
         RCLCPP_ERROR(node_->get_logger(), "[%s] Setting with code %d and value %f failed", node_->get_name(), property_id, value);
         return false;
@@ -857,6 +895,7 @@ void Capture::configureRawDecode()
   const std::string fourcc{static_cast<char>(fcc & 0xFF), static_cast<char>((fcc >> 8) & 0xFF),
                            static_cast<char>((fcc >> 16) & 0xFF), static_cast<char>((fcc >> 24) & 0xFF)};
   raw_mjpg_ = (fourcc == "MJPG") && cap_.set(cv::CAP_PROP_CONVERT_RGB, 0);
+  grab_pending_ = false;
   RCLCPP_INFO(node_->get_logger(), "[%s] fourcc %s, raw MJPG decode %s", node_->get_name(), fourcc.c_str(), raw_mjpg_ ? "enabled" : "disabled");
 }
 
