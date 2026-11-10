@@ -501,10 +501,10 @@ private:
    *
    * Setting the frame size, fps or fourcc on an open camera makes OpenCV restart the V4L2 stream
    * and reallocate its buffers. Driver::read() grabs and Driver::proceed() retrieves from separate
-   * timers, so retrieving a grab from before the restart copies an unmapped buffer and segfaults.
-   * The USB cameras also come out of the restart with their hardware auto exposure stuck (black
-   * image while V4L2 still reports exposure_auto=3), which only switching to manual and back for
-   * a moment fixes. See kiwicampus/Kronos-Project#6433.
+   * timers, so a grab from before the restart points to a buffer that no longer exists and must
+   * not be retrieved. The USB cameras also come out of the restart with their hardware auto
+   * exposure stuck (dark image while V4L2 still reports exposure_auto=3), and switching to manual
+   * and back for a moment gets it running again.
    */
   void onStreamRestart();
 
