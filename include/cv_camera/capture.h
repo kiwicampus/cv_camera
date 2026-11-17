@@ -3,23 +3,23 @@
 #ifndef CV_CAMERA_CAPTURE_H
 #define CV_CAMERA_CAPTURE_H
 
-#include "cv_camera/exception.h"
 #include <deque>
 #include <string>
+#include "cv_camera/exception.h"
 
-#include <rclcpp/rclcpp.hpp>
+#include <camera_info_manager/camera_info_manager.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <image_transport/image_transport.hpp>
-#include <sensor_msgs/msg/camera_info.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/image_encodings.hpp>
-#include "opencv2/opencv.hpp"
-#include "opencv2/imgcodecs.hpp"
-#include <camera_info_manager/camera_info_manager.hpp>
-#include "std_msgs/msg/u_int8.hpp"
-#include "std_msgs/msg/bool.hpp"
-#include "std_srvs/srv/trigger.hpp"
-#include "std_srvs/srv/set_bool.hpp"
+#include <sensor_msgs/msg/camera_info.hpp>
 #include "cv_camera/srv/grab_frame.hpp"
+#include "opencv2/opencv.hpp"
+#include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/u_int8.hpp"
+#include "std_srvs/srv/set_bool.hpp"
+#include "std_srvs/srv/trigger.hpp"
 
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "diagnostic_msgs/msg/diagnostic_status.hpp"
@@ -35,8 +35,7 @@ using std::placeholders::_3;
 /**
  * @brief namespace of this package
  */
-namespace cv_camera
-{
+namespace cv_camera {
 
 /**
  * @brief captures by cv::VideoCapture and publishes to ROS topic.
@@ -590,6 +589,6 @@ private:
 
 };
 
-} // namespace cv_camera
+}  // namespace cv_camera
 
-#endif // CV_CAMERA_CAPTURE_H
+#endif  // CV_CAMERA_CAPTURE_H
