@@ -43,473 +43,550 @@ namespace cv_camera {
  */
 class Capture
 {
-   public:
-    /**
-     * @brief costruct with ros node and topic settings
-     *
-     * @param node ROS node handle for advertise topic.
-     * @param img_topic_name name of topic to publish (this may be image_raw).
-     * @param cam_info_topic_name name of topic to publish cam info (this may be camera_info).
-     * @param rect_image_topic_name name of topic to publish rectified image (this may be image_rect).
-     * @param frame_id frame_id of publishing messages.
-     * @param roi_exposure enable/disable ROI exposure control.
-     * @param focus_threshold focus threshold.
-     * @param check_focus_in_img_center check focus in image center.
-     * @param stale_pixel_intensity_threshold gray-level change (0-255) for a pixel to count as "changed" when checking
-     * for staleness.
-     * @param stale_min_changed_pixels_pct minimum percentage of changed pixels for a sample to count as "real change"
-     * rather than stale.
-     * @param stale_window_size number of consecutive stale-check samples required, all unchanged, to report the camera
-     * as stale.
-     * @param buffer_size size of publisher buffer.
-     */
-    Capture(rclcpp::Node::SharedPtr node, const std::string& img_topic_name, const std::string& cam_info_topic_name,
-            const std::string& rect_image_topic_name, const std::string& frame_id, const bool roi_exposure,
-            double focus_threshold, bool check_focus_in_img_center, int stale_pixel_intensity_threshold,
-            double stale_min_changed_pixels_pct, int stale_window_size, uint32_t buffer_size);
+public:
+  /**
+   * @brief costruct with ros node and topic settings
+   *
+   * @param node ROS node handle for advertise topic.
+   * @param img_topic_name name of topic to publish (this may be image_raw).
+   * @param cam_info_topic_name name of topic to publish cam info (this may be camera_info).
+   * @param rect_image_topic_name name of topic to publish rectified image (this may be image_rect).
+   * @param frame_id frame_id of publishing messages.
+   * @param roi_exposure enable/disable ROI exposure control.
+   * @param focus_threshold focus threshold.
+   * @param check_focus_in_img_center check focus in image center.
+   * @param stale_pixel_intensity_threshold gray-level change (0-255) for a pixel to count as "changed" when checking for staleness.
+   * @param stale_min_changed_pixels_pct minimum percentage of changed pixels for a sample to count as "real change" rather than stale.
+   * @param stale_window_size number of consecutive stale-check samples required, all unchanged, to report the camera as stale.
+   * @param buffer_size size of publisher buffer.
+   * @param preferred_cam_format capture format (99% of the times MJPG)
+   */
+  Capture(rclcpp::Node::SharedPtr node,
+          const std::string &img_topic_name,
+          const std::string &cam_info_topic_name,
+          const std::string &rect_image_topic_name,
+          const std::string &frame_id,
+          const bool roi_exposure,
+          double focus_threshold,
+          bool check_focus_in_img_center,
+          int stale_pixel_intensity_threshold,
+          double stale_min_changed_pixels_pct,
+          int stale_window_size,
+          uint32_t buffer_size,
+          const std::string &preferred_cam_format);
 
-    /**
-     * @brief Open capture device with device ID.
-     *
-     * @param device_id id of camera device (number from 0)
-     * @throw cv_camera::DeviceError device open failed
-     *
-     */
-    bool open(int32_t device_id);
+  /**
+   * @brief Open capture device with device ID.
+   *
+   * @param device_id id of camera device (number from 0)
+   * @throw cv_camera::DeviceError device open failed
+   *
+   */
+  bool open(int32_t device_id);
 
-    /**
-     * @brief Open capture device with device name.
-     *
-     * @param port path of the camera device
-     * @throw cv_camera::DeviceError device open failed
-     */
-    bool open(const std::string& port);
+  /**
+   * @brief Open capture device with device name.
+   *
+   * @param port path of the camera device
+   * @throw cv_camera::DeviceError device open failed
+   */
+  bool open(const std::string &port);
 
-    /**
-     * @brief Finds the equivalent camera device associated to
-     *        one port.
-     * @param command Terminal command to be executed
-     * @return command_output::Command output delivered by the terminal
-     */
-    std::string execute_command(const char* command);
+  /**
+   * @brief Finds the equivalent camera device associated to
+   *        one port.
+   * @param command Terminal command to be executed
+   * @return command_output::Command output delivered by the terminal
+   */
+  std::string execute_command(const char* command);
+  
+  /**
+   * @brief Finds the equivalent camera device associated to
+   *        one port.
+   * @param port Port number of interest
+   * @return port::DeviceError device open failed
+   */
+  std::string det_device_path(const char* port);
 
-    /**
-     * @brief Finds the equivalent camera device associated to
-     *        one port.
-     * @param port Port number of interest
-     * @return port::DeviceError device open failed
-     */
-    std::string det_device_path(const char* port);
+  /**
+   * @brief Checks if a device supports the preferred format
+   * @param device_number video device number to check
+   * @return true if the device lists the preferred format among its formats
+   */
+  bool supportsPreferredFormat(int device_number);
 
-    /**
-     * @brief Load camera info from file.
-     *
-     * This loads the camera info from the file specified in the camera_info_url parameter.
-     */
-    void loadCameraInfo();
+  /**
+   * @brief Load camera info from file.
+   *
+   * This loads the camera info from the file specified in the camera_info_url parameter.
+   */
+  void loadCameraInfo();
 
-    /**
-     * @brief Rectify image using camera info.
-     *
-     * This uses the camera info loaded by loadCameraInfo() and creates a rectified image.
-     */
-    void rectify();
+  /**
+   * @brief Rectify image using camera info.
+   *
+   * This uses the camera info loaded by loadCameraInfo() and creates a rectified image.
+   */
+  void rectify();
 
-    /**
-     * @brief Open default camera device.
-     *
-     * This opens with device 0.
-     *
-     * @throw cv_camera::DeviceError device open failed
-     */
-    void open();
+  /**
+   * @brief Open default camera device.
+   *
+   * This opens with device 0.
+   *
+   * @throw cv_camera::DeviceError device open failed
+   */
+  void open();
 
-    /**
-     * @brief open video file instead of capture device.
-     */
-    bool openFile(const std::string& file_path);
+  /**
+   * @brief open video file instead of capture device.
+   */
+  bool openFile(const std::string &file_path);
 
-    /**
-     * @brief Close capture device.
-     * Uses release OpenCV function.
-     */
-    void close();
+  /**
+   * @brief Close capture device.
+   * Uses release OpenCV function.
+  */
+  void close();
 
-    /**
-     * @brief Checks if capture device is opened
-     * Uses release OpenCV function.
-     */
-    bool is_opened();
+  /**
+   * @brief Call before grabbing stops (pause, close, destruction).
+   *
+   * An auto exposure re-arm in progress has the camera in manual exposure and only finishes after
+   * more grabs. Put the configured mode back now, so the camera is never left in manual, and redo
+   * the re-arm on the next grab.
+   */
+  void suspendAutoExposureRearm();
 
-    /**
-     * @brief capture an image and store.
-     * to publish the captured image, call publish();
-     * @param flip_vertical flip the image around vertical axis if true
-     * @param flip_horizontal flip the image around horizontal axis if true
-     * @return true if success to capture, false if not captured.
-     */
-    bool capture(bool flip_vertical, bool flip_horizontal);
+  ~Capture();
 
-    /**
-     * @brief pull an image from the camera but dont decode it
-     *
-     * @return true if success to pull, false if not pulled.
-     */
-    bool grab();
+  /**
+   * @brief Checks if capture device is opened
+   * Uses release OpenCV function.
+  */
+  bool is_opened();
 
-    /**
-     * @brief Publish the image that is already captured by capture().
-     *
-     */
-    void publish(sensor_msgs::msg::Image::UniquePtr msg);
+  /**
+   * @brief capture an image and store.
+   * to publish the captured image, call publish();
+   * @param flip_vertical flip the image around vertical axis if true
+   * @param flip_horizontal flip the image around horizontal axis if true
+   * @return true if success to capture, false if not captured.
+   */
+  bool capture(bool flip_vertical, bool flip_horizontal);
 
-    /**
-     * @brief accessor of CameraInfo.
-     *
-     * you have to call capture() before call this.
-     *
-     * @return CameraInfo
-     */
-    inline const sensor_msgs::msg::CameraInfo& getInfo() const { return info_; }
+  /**
+   * @brief pull an image from the camera but dont decode it
+   *
+   * @return true if success to pull, false if not pulled.
+   */
+  bool grab();
 
-    /**
-     * @brief accessor of cv::Mat
-     *
-     * you have to call capture() before call this.
-     *
-     * @return captured cv::Mat
-     */
-    inline const cv::Mat& getCvImage() const { return bridge_.image; }
+  /**
+   * @brief Whether a grab() is waiting to be retrieved on the current stream.
+   */
+  bool hasPendingGrab() const;
 
-    /**
-     * @brief accessor of ROS Image message.
-     *
-     * you have to call capture() before call this.
-     *
-     * @return message pointer.
-     */
-    sensor_msgs::msg::Image::SharedPtr getImageMsgPtr();
+  /**
+   * @brief Publish the image that is already captured by capture().
+   *
+   */
+  void publish(sensor_msgs::msg::Image::UniquePtr msg);
 
-    /**
-     * @brief accessor of ROS Image message.
-     *
-     * you have to call capture() before call this.
-     *
-     * @return message pointer.
-     */
-    sensor_msgs::msg::Image::SharedPtr getUndistortedImageMsgPtr();
+  /**
+   * @brief accessor of CameraInfo.
+   *
+   * you have to call capture() before call this.
+   *
+   * @return CameraInfo
+   */
+  inline const sensor_msgs::msg::CameraInfo &getInfo() const
+  {
+    return info_;
+  }
 
-    /**
-     * @brief try capture image width
-     * @return true if success
-     */
-    inline bool setWidth(int32_t width) { return cap_.set(cv::CAP_PROP_FRAME_WIDTH, width); }
+  /**
+   * @brief accessor of cv::Mat
+   *
+   * you have to call capture() before call this.
+   *
+   * @return captured cv::Mat
+   */
+  inline const cv::Mat &getCvImage() const
+  {
+    return bridge_.image;
+  }
 
-    /**
-     * @brief try capture image height
-     * @return true if success
-     */
-    inline bool setHeight(int32_t height) { return cap_.set(cv::CAP_PROP_FRAME_HEIGHT, height); }
+  /**
+   * @brief accessor of ROS Image message.
+   *
+   * you have to call capture() before call this.
+   *
+   * @return message pointer.
+   */
+  sensor_msgs::msg::Image::SharedPtr getImageMsgPtr();
 
-    /**
-     * @brief set CV_PROP_*
-     * @return true if success
-     */
-    bool setPropertyFromParam(int property_id, const std::string& param_name);
+  /**
+   * @brief accessor of ROS Image message.
+   *
+   * you have to call capture() before call this.
+   *
+   * @return message pointer.
+   */
+  sensor_msgs::msg::Image::SharedPtr getUndistortedImageMsgPtr();
 
-    /**
-     * @brief get CV_PROP_*
-     * @return value of property
-     */
-    double getProperty(int property_id);
+  /**
+   * @brief try capture image width
+   * @return true if success
+   */
+  inline bool setWidth(int32_t width)
+  {
+    return cap_.set(cv::CAP_PROP_FRAME_WIDTH, width);
+  }
 
-    /**
-     * @brief Set focus threshold
-     * @param focus_threshold focus threshold
-     */
-    void setFocusThreshold(double focus_threshold);
+  /**
+   * @brief try capture image height
+   * @return true if success
+   */
+  inline bool setHeight(int32_t height)
+  {
+    return cap_.set(cv::CAP_PROP_FRAME_HEIGHT, height);
+  }
 
-    /**
-     * @brief Set check focus in image center
-     * @param check_focus_in_img_center check focus in image center
-     */
-    void setCheckFocusInImgCenter(bool check_focus_in_img_center);
+  /**
+   * @brief set CV_PROP_*
+   * @return true if success
+   */
+  bool setPropertyFromParam(int property_id, const std::string &param_name);
 
-    /**
-     * @brief Set the pixel intensity threshold used to decide if a single pixel changed.
-     */
-    void setStalePixelIntensityThreshold(int stale_pixel_intensity_threshold);
+  /**
+   * @brief get CV_PROP_*
+   * @return value of property
+   */
+  double getProperty(int property_id);
 
-    /**
-     * @brief Set the minimum percentage of changed pixels for a sample to count as an actual change.
-     */
-    void setStaleMinChangedPixelsPct(double stale_min_changed_pixels_pct);
+  /**
+   * @brief Set focus threshold
+   * @param focus_threshold focus threshold
+   */
+  void setFocusThreshold(double focus_threshold);
 
-    /**
-     * @brief Set the number of consecutive unchanged samples required to report the camera as stale.
-     *        Resets any in-progress sample window, since a mid-window size change can't be evaluated consistently.
-     */
-    void setStaleWindowSize(int stale_window_size);
+  /**
+   * @brief Set check focus in image center
+   * @param check_focus_in_img_center check focus in image center
+   */
+  void setCheckFocusInImgCenter(bool check_focus_in_img_center);
 
-    /**
-     * @brief Set black error image in case of error.
-     */
-    void set_error_image(const std::string& error_msg, int width = 640, int height = 360);
+  /**
+   * @brief Set the pixel intensity threshold used to decide if a single pixel changed.
+   */
+  void setStalePixelIntensityThreshold(int stale_pixel_intensity_threshold);
 
-    /**
-     * @brief Check if the current frame is stale (sustained lack of change)
-     * @return true if the last stale_window_size_ samples all showed no real change
-     */
-    bool isFrameStale();
+  /**
+   * @brief Set the minimum percentage of changed pixels for a sample to count as an actual change.
+   */
+  void setStaleMinChangedPixelsPct(double stale_min_changed_pixels_pct);
 
-    /**
-     * @brief Take one stale-detection sample, diff the current frame against the frame
-     *        from the previous call
-     */
-    void updateStaleFrameEvidence();
+  /**
+   * @brief Set the number of consecutive unchanged samples required to report the camera as stale.
+   *        Resets any in-progress sample window, since a mid-window size change can't be evaluated consistently.
+   */
+  void setStaleWindowSize(int stale_window_size);
 
-    /**
-     * @brief Discard all stale-frame evidence: clears the sample window and the reference
-     *        frame. Call whenever sampling stops (pause, device release), so evidence
-     *        gathered before the stop can't be reported later as if it were current.
-     */
-    void resetStaleEvidence();
+  /**
+   * @brief Set black error image in case of error.
+   */
+  void set_error_image(const std::string& error_msg, int width = 640, int height = 360);
 
-    /**
-     * @brief Compute the percentage of pixels that changed by more than intensity_threshold
-     *        between two frames, after downsampling both to a small grayscale image.
-     * @param current current frame
-     * @param previous previous frame (must be the same size/type as current)
-     * @param intensity_threshold per-pixel gray-level change (0-255) to count as "changed"
-     * @return percentage (0-100) of pixels that changed
-     */
-    static double computeChangedPixelsPct(const cv::Mat& current, const cv::Mat& previous, int intensity_threshold);
+  /**
+   * @brief Check if the current frame is stale (sustained lack of change)
+   * @return true if the last stale_window_size_ samples all showed no real change
+   */
+  bool isFrameStale();
 
-    /**
-     * @brief rescale camera calibration to another resolution
-     */
-    void rescaleCameraInfo(uint width, uint height);
+  /**
+   * @brief Take one stale-detection sample, diff the current frame against the frame
+   *        from the previous call
+   */
+  void updateStaleFrameEvidence();
 
-    /**
-     * @brief rescale camera calibration to another resolution
-     * @param width new width
-     * @param height new height
-     * @return true if success using a hd_intrinsic_file instead of rescaling
-     */
-    bool rescaleFromFile(uint width, uint height);
+  /**
+   * @brief Discard all stale-frame evidence: clears the sample window and the reference
+   *        frame. Call whenever sampling stops (pause, device release), so evidence
+   *        gathered before the stop can't be reported later as if it were current.
+   */
+  void resetStaleEvidence();
 
-    /**
-     * @brief initialize undistort rectify map
-     */
-    void initUndistortRectifyMap();
-    /**
-     * @brief Check if the image is empty
-     * @return True if image is empty, false otherwise
-     */
-    bool is_empty();
-    /**
-     * @brief Check if the image is focused
-     * @return True if image is focused, false otherwise
-     */
-    bool isFocused();
-    /**
-     * @brief Latch whether we decode MJPG buffers ourselves, and turn OpenCV's own conversion off.
-     *
-     * Call this only AFTER every cv::CAP_PROP_* parameter has been applied. Driver::setup() sets
-     * CAP_PROP_FOURCC from the "fourcc" parameter ([M,J,P,G] for every camera in
-     * vision_bringup/params/vision_params.yaml) only after Capture::open() returns, so reading the
-     * fourcc inside open() saw the uvcvideo default of YUYV. raw_mjpg_ stayed false on cameras that
-     * really do stream MJPG, the size and 0xFFD8 marker validation in capture() never ran, and
-     * OpenCV's V4L2 backend kept doing its own internal imdecode - which throws
-     * "buf.checkVector(1, CV_8U) > 0" on a short buffer and burns CPU on a JPEG to BGR conversion
-     * for every frame of every camera.
-     */
-    void configureRawDecode();
+  /**
+   * @brief Compute the percentage of pixels that changed by more than intensity_threshold
+   *        between two frames, after downsampling both to a small grayscale image.
+   * @param current current frame
+   * @param previous previous frame (must be the same size/type as current)
+   * @param intensity_threshold per-pixel gray-level change (0-255) to count as "changed"
+   * @return percentage (0-100) of pixels that changed
+   */
+  static double computeChangedPixelsPct(const cv::Mat &current, const cv::Mat &previous, int intensity_threshold);
 
-   private:
-    /**
-     * @brief Get Laplacian variance of last captured image
-     * @return Laplacian variance value
-     */
-    double getLaplacianVariance();
+  /**
+   * @brief rescale camera calibration to another resolution
+   */
+  void rescaleCameraInfo(uint width, uint height);
 
-    /**
-     * @brief Get Brenner score of last captured image
-     * @return Brenner score value
-     */
-    double getBrennerScore();
+  /**
+   * @brief rescale camera calibration to another resolution
+   * @param width new width
+   * @param height new height
+   * @return true if success using a hd_intrinsic_file instead of rescaling
+   */
+  bool rescaleFromFile(uint width, uint height);
 
-    /**
-     * @brief Select appropiate encoding for the image
-     */
-    std::string mat_type2encoding(int mat_type);
+  /**
+   * @brief initialize undistort rectify map
+   */
+  void initUndistortRectifyMap();
+  /**
+   * @brief Check if the image is empty
+   * @return True if image is empty, false otherwise
+   */
+  bool is_empty();  
+  /**
+   * @brief Check if the image is focused
+   * @return True if image is focused, false otherwise
+   */
+  bool isFocused();
+  /**
+   * @brief Latch whether we decode MJPG buffers ourselves, and turn OpenCV's own conversion off.
+   *
+   * Call this only AFTER every cv::CAP_PROP_* parameter has been applied. Driver::setup() sets
+   * CAP_PROP_FOURCC from the "fourcc" parameter ([M,J,P,G] for every camera in
+   * vision_bringup/params/vision_params.yaml) only after Capture::open() returns, so reading the
+   * fourcc inside open() saw the uvcvideo default of YUYV. raw_mjpg_ stayed false on cameras that
+   * really do stream MJPG, the size and 0xFFD8 marker validation in capture() never ran, and
+   * OpenCV's V4L2 backend kept doing its own internal imdecode - which throws
+   * "buf.checkVector(1, CV_8U) > 0" on a short buffer and burns CPU on a JPEG to BGR conversion
+   * for every frame of every camera.
+   */
+  void configureRawDecode();
 
-    /**
-     * @brief set current time to message header
-     */
-    void set_now(builtin_interfaces::msg::Time& time);
+private:
 
-    /**
-     * @brief Sets the exposure of the camera based on the histogram of the image
-     * @param frame to set exposure
-     */
-    void custom_roi_exposure(cv::Mat& frame);
+  /**
+  * @brief Get Laplacian variance of last captured image
+  * @return Laplacian variance value
+  */
+  double getLaplacianVariance();
 
-    /**
-     * @brief node handle for advertise.
-     */
-    rclcpp::Node::SharedPtr node_;
+  /**
+  * @brief Get Brenner score of last captured image
+  * @return Brenner score value
+  */
+  double getBrennerScore();
+  
+  /**
+   * @brief Select appropiate encoding for the image
+   */
+  std::string mat_type2encoding(int mat_type);
 
-    /**
-     * @brief ROS image transport utility.
-     */
-    image_transport::ImageTransport it_;
+  /**
+   * @brief set current time to message header
+   */
+  void set_now(builtin_interfaces::msg::Time& time);
 
-    /**
-     * @brief name of topic without namespace (usually "image_raw").
-     */
-    std::string img_topic_name_;
+  /**
+   * @brief Sets the exposure of the camera based on the histogram of the image
+   * @param frame to set exposure
+   */
+  void custom_roi_exposure(cv::Mat& frame);
 
-    /**
-     * @brief name of topic without namespace (usually "camera_info").
-     */
-    std::string cam_info_topic_name_;
+  /**
+   * @brief node handle for advertise.
+   */
+  rclcpp::Node::SharedPtr node_;
 
-    /**
-     * @brief name of rectified topic without namespace (usually "image_rect").
-     */
-    std::string rect_img_topic_name_;
-    /**
-     * @brief header.frame_id for publishing images.
-     */
-    std::string frame_id_;
-    /**
-     * @brief Enables/Disables out custom exposure controller depending on histogram
-     */
-    bool roi_exposure_;
-    /**
-     * @brief Focus threshold for focus detection
-     */
-    double focus_threshold_;
-    /**
-     * @brief Check focus in image center
-     */
-    bool check_focus_in_img_center_;
-    /**
-     * @brief Gray-level change (0-255) for a pixel to count as "changed" in the stale check
-     */
-    int stale_pixel_intensity_threshold_;
-    /**
-     * @brief Minimum percentage of changed pixels for a sample to count as "real change"
-     */
-    double stale_min_changed_pixels_pct_;
-    /**
-     * @brief Number of consecutive unchanged samples required to report the camera as stale
-     */
-    size_t stale_window_size_;
-    /**
-     * @brief Sliding window of the most recent stale-check samples (true = unchanged)
-     */
-    std::deque<bool> stale_sample_window_;
-    /**
-     * @brief Whether updateStaleFrameEvidence() has captured a reference frame yet
-     */
-    bool has_prior_sample_ = false;
-    /**
-     * @brief timestamp of capture image
-     */
-    rclcpp::Time timestamp_;
-    /**
-     * @brief Rectified image
-     */
-    cv::Mat rect_image_;
-    /**
-     * @brief Rectification maps
-     */
-    cv::Mat map1_, map2_;
-    /**
-     * @brief size of publisher buffer
-     */
-    uint32_t buffer_size_;
+  /**
+   * @brief ROS image transport utility.
+   */
+  image_transport::ImageTransport it_;
 
-    /**
-     * @brief image publisher created by image_transport::ImageTransport.
-     */
-    image_transport::CameraPublisher pub_;
+  /**
+   * @brief name of topic without namespace (usually "image_raw").
+   */
+  std::string img_topic_name_;
 
-    /**
-     * @brief video path to be streamed
-     */
-    std::string video_path_ = "";
+  /**
+   * @brief name of topic without namespace (usually "camera_info").
+   */
+  std::string cam_info_topic_name_;
 
-    /**
-     * @brief capture device.
-     */
-    cv::VideoCapture cap_;
+  /**
+   * @brief name of rectified topic without namespace (usually "image_rect").
+   */
+  std::string rect_img_topic_name_;
+  /**
+   * @brief header.frame_id for publishing images.
+   */
+  std::string frame_id_;
+  /**
+   * @brief Enables/Disables out custom exposure controller depending on histogram
+   */
+  bool roi_exposure_;
+  /**
+   * @brief Focus threshold for focus detection
+   */
+  double focus_threshold_;
+  /**
+   * @brief Check focus in image center
+   */
+  bool check_focus_in_img_center_;
+  /**
+   * @brief Gray-level change (0-255) for a pixel to count as "changed" in the stale check
+   */
+  int stale_pixel_intensity_threshold_;
+  /**
+   * @brief Minimum percentage of changed pixels for a sample to count as "real change"
+   */
+  double stale_min_changed_pixels_pct_;
+  /**
+   * @brief Number of consecutive unchanged samples required to report the camera as stale
+   */
+  size_t stale_window_size_;
+  /**
+   * @brief Sliding window of the most recent stale-check samples (true = unchanged)
+   */
+  std::deque<bool> stale_sample_window_;
+  /**
+   * @brief Whether updateStaleFrameEvidence() has captured a reference frame yet
+   */
+  bool has_prior_sample_ = false;
+  /**
+   * @brief timestamp of capture image
+   */
+  rclcpp::Time timestamp_;
+  /**
+   * @brief Rectified image
+   */
+  cv::Mat rect_image_;
+  /**
+   * @brief Rectification maps
+   */
+  cv::Mat map1_, map2_;
+  /**
+   * @brief size of publisher buffer
+   */
+  uint32_t buffer_size_;
 
-    /**
-     * @brief JP5: decode MJPG frames ourselves (CAP_PROP_CONVERT_RGB=0) with size/marker validation.
-     * OpenCV 4.11's V4L2 backend segfaults in imdecode when uvcvideo (5.10) reports a bogus bytesused.
-     */
-    bool raw_mjpg_ = false;
+  /**
+   * @brief preferred capture format (e.g. "MJPG") when resolving a port to a /dev/videoN
+   */
+  std::string preferred_cam_format_;
 
-    /**
-     * @brief Saturation latches for custom_roi_exposure().
-     *
-     * The ROI exposure loop walks V4L2_CID_EXPOSURE_ABSOLUTE by +/-1 every frame with no bound.
-     * Once it reaches the device's min or max the camera STALLs the control write, which uvcvideo
-     * reports as "Failed to query (SET_CUR) UVC control 4 on unit 1: -32" (EPIPE). 75 of those in
-     * one boot on 4F042. OpenCV exposes no way to read a control's range, so instead we read the
-     * value back after a write: if it did not move, we are at that rail and stop pushing further
-     * in the same direction until a write in the other direction succeeds.
-     */
-    bool exposure_at_max_ = false;
-    bool exposure_at_min_ = false;
+  /**
+   * @brief image publisher created by image_transport::ImageTransport.
+   */
+  image_transport::CameraPublisher pub_;
 
-    /**
-     * @brief this stores last captured image.
-     */
-    cv_bridge::CvImage bridge_;
+  /**
+   * @brief video path to be streamed
+   */
+  std::string video_path_ = "";
 
-    /**
-     * @brief this stores previous captured image for stale frame detection.
-     */
-    cv_bridge::CvImage previous_bridge_;
+  /**
+   * @brief capture device.
+   */
+  cv::VideoCapture cap_;
 
-    /**
-     * @brief this stores last captured image info.
-     *
-     * currently this has image size (width/height) only.
-     */
-    sensor_msgs::msg::CameraInfo info_;
+  /**
+   * @brief JP5: decode MJPG frames ourselves (CAP_PROP_CONVERT_RGB=0) with size/marker validation.
+   * OpenCV 4.11's V4L2 backend segfaults in imdecode when uvcvideo (5.10) reports a bogus bytesused.
+   */
+  bool raw_mjpg_ = false;
 
-    /**
-     * @brief camera info manager
-     */
-    camera_info_manager::CameraInfoManager info_manager_;
+  /**
+   * @brief cap_.set() that also handles the V4L2 stream restart some properties cause.
+   */
+  bool setCapProperty(int property_id, double value);
 
-    /**
-     * @brief rescale_camera_info param value
-     */
-    bool rescale_camera_info_;
+  /**
+   * @brief Forget the pending grab and schedule an auto exposure re-arm.
+   *
+   * Setting the frame size, fps or fourcc on an open camera makes OpenCV restart the V4L2 stream
+   * and reallocate its buffers. Driver::read() grabs and Driver::proceed() retrieves from separate
+   * timers, so a grab from before the restart points to a buffer that no longer exists and must
+   * not be retrieved. The USB cameras also come out of the restart with their hardware auto
+   * exposure stuck (dark image while V4L2 still reports exposure_auto=3), and switching to manual
+   * and back for a moment gets it running again.
+   */
+  void onStreamRestart();
 
-    /**
-     * @brief capture_delay param value
-     */
-    rclcpp::Duration capture_delay_;
+  /**
+   * @brief Called on every grab: manual exposure on the first frame of a new stream, configured
+   * auto exposure mode AE_REARM_FRAMES frames later.
+   */
+  void stepAutoExposureRearm();
 
-    /**
-     * @brief Final publisher for image messages
-     */
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_pub_image_ptr;
-    /**
-     * @brief Final publisher for rectified image messages
-     */
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_pub_rect_image_ptr;
-    /**
-     * @brief Final publisher for camera info messages
-     */
-    rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr m_pub_camera_info_ptr;
+  static constexpr int AE_REARM_FRAMES = 30;
+  bool grab_pending_ = false;
+  int ae_rearm_countdown_ = 0;
+  double ae_rearm_mode_ = 0.0;
+
+  /**
+   * @brief Saturation latches for custom_roi_exposure().
+   *
+   * The ROI exposure loop walks V4L2_CID_EXPOSURE_ABSOLUTE by +/-1 every frame with no bound.
+   * Once it reaches the device's min or max the camera STALLs the control write, which uvcvideo
+   * reports as "Failed to query (SET_CUR) UVC control 4 on unit 1: -32" (EPIPE). 75 of those in
+   * one boot on 4F042. OpenCV exposes no way to read a control's range, so instead we read the
+   * value back after a write: if it did not move, we are at that rail and stop pushing further
+   * in the same direction until a write in the other direction succeeds.
+   */
+  bool exposure_at_max_ = false;
+  bool exposure_at_min_ = false;
+
+  /**
+   * @brief this stores last captured image.
+   */
+  cv_bridge::CvImage bridge_;
+
+  /**
+   * @brief this stores previous captured image for stale frame detection.
+   */
+  cv_bridge::CvImage previous_bridge_;
+
+  /**
+   * @brief this stores last captured image info.
+   *
+   * currently this has image size (width/height) only.
+   */
+  sensor_msgs::msg::CameraInfo info_;
+
+  /**
+   * @brief camera info manager
+   */
+  camera_info_manager::CameraInfoManager info_manager_;
+
+  /**
+   * @brief rescale_camera_info param value
+   */
+  bool rescale_camera_info_;
+
+  /**
+   * @brief capture_delay param value
+   */
+  rclcpp::Duration capture_delay_;
+
+  /**
+   * @brief Final publisher for image messages
+   */
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_pub_image_ptr;
+  /**
+   * @brief Final publisher for rectified image messages
+   */
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_pub_rect_image_ptr;
+  /**
+   * @brief Final publisher for camera info messages
+   */
+  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr m_pub_camera_info_ptr;
+
 };
 
 }  // namespace cv_camera

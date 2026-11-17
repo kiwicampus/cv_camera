@@ -125,6 +125,9 @@ void Driver::parameters_setup()
 bool Driver::setup()
 {
 
+  // Same format the "fourcc" param already tells OpenCV to open the camera ("MJPG")
+  std::string preferred_cam_format = fourcc_[0] + fourcc_[1] + fourcc_[2] + fourcc_[3];
+
   camera_.reset(new Capture(shared_from_this(),
                             "/video_mapping" + name_ + "/image_raw",
                             "/video_mapping" + name_ + "/camera_info",
@@ -136,25 +139,27 @@ bool Driver::setup()
                             stale_pixel_intensity_threshold_,
                             stale_min_changed_pixels_pct_,
                             stale_window_size_,
-                            PUBLISHER_BUFFER_SIZE));
+                            PUBLISHER_BUFFER_SIZE,
+                            preferred_cam_format));
 
+  // Prefer resolving by a port instead of the device_id, since this can change in runtime if a power cycle happens
   if (video_path_ != "")
   {
     camera_->openFile(video_path_);
-  }
-  else if (device_id_ >= 0)
-  {
-    if (!camera_->open(device_id_))
-    {
-      RCLCPP_WARN(get_logger(), "[%s] Couldn't open camera by device_id [%d]", name_.c_str(), device_id_);
-      return false;
-    }
   }
   else if (port_ != "")
   {
     if (!camera_->open(port_))
     {
       RCLCPP_WARN(get_logger(), "[%s] Couldn't open camera by port [%s]", name_.c_str(), port_.c_str());
+      return false;
+    }
+  }
+  else if (device_id_ >= 0)
+  {
+    if (!camera_->open(device_id_))
+    {
+      RCLCPP_WARN(get_logger(), "[%s] Couldn't open camera by device_id [%d]", name_.c_str(), device_id_);
       return false;
     }
   }
@@ -306,6 +311,9 @@ void Driver::proceed()
   }
   else
   {
+    // The stream was just opened or restarted, wait for read() to grab a frame.
+    if (!camera_->hasPendingGrab()) return;
+
     if (!camera_->capture(flip_vertical_, flip_horizontal_))
     {
       RCLCPP_WARN(get_logger(), "[%s] Couldn't capture frame", name_.c_str());
@@ -650,6 +658,7 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
   {
     read_tmr_->cancel();
     publish_tmr_->cancel();
+    camera_->suspendAutoExposureRearm();
     // Evidence gathered before the pause can't be told apart from a genuinely frozen
     // camera once sampling stops, so it must not survive the pause.
     camera_->resetStaleEvidence();

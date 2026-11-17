@@ -9,26 +9,43 @@ namespace cv_camera {
 
 namespace enc = sensor_msgs::image_encodings;
 
-Capture::Capture(rclcpp::Node::SharedPtr node, const std::string& img_topic_name,
-                 const std::string& cam_info_topic_name, const std::string& rect_img_topic_name,
-                 const std::string& frame_id, const bool roi_exposure, double focus_threshold,
-                 bool check_focus_in_img_center, int stale_pixel_intensity_threshold,
-                 double stale_min_changed_pixels_pct, int stale_window_size, uint32_t buffer_size)
-    : node_(node)
-    , it_(node_)
-    , img_topic_name_(img_topic_name)
-    , cam_info_topic_name_(cam_info_topic_name)
-    , rect_img_topic_name_(rect_img_topic_name)
-    , frame_id_(frame_id)
-    , roi_exposure_(roi_exposure)
-    , focus_threshold_(focus_threshold)
-    , check_focus_in_img_center_(check_focus_in_img_center)
-    , stale_pixel_intensity_threshold_(stale_pixel_intensity_threshold)
-    , stale_min_changed_pixels_pct_(stale_min_changed_pixels_pct)
-    , stale_window_size_(static_cast<size_t>(stale_window_size))
-    , buffer_size_(buffer_size)
-    , info_manager_(node_.get(), frame_id)
-    , capture_delay_(rclcpp::Duration(0, 0.0))
+// Properties whose cap_.set() makes OpenCV's V4L2 backend restart the stream.
+static bool restartsStream(int property_id)
+{
+  switch (property_id)
+  {
+    case cv::CAP_PROP_FRAME_WIDTH:
+    case cv::CAP_PROP_FRAME_HEIGHT:
+    case cv::CAP_PROP_FPS:
+    case cv::CAP_PROP_FOURCC:
+    case cv::CAP_PROP_FORMAT:
+    case cv::CAP_PROP_MODE:
+    case cv::CAP_PROP_CONVERT_RGB:
+    case cv::CAP_PROP_BUFFERSIZE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+Capture::Capture(rclcpp::Node::SharedPtr node, const std::string &img_topic_name, const std::string &cam_info_topic_name,
+                 const std::string &rect_img_topic_name, const std::string &frame_id, const bool roi_exposure, double focus_threshold, bool check_focus_in_img_center, int stale_pixel_intensity_threshold, double stale_min_changed_pixels_pct, int stale_window_size, uint32_t buffer_size, const std::string &preferred_cam_format)
+    : node_(node),
+      it_(node_),
+      img_topic_name_(img_topic_name),
+      cam_info_topic_name_(cam_info_topic_name),
+      rect_img_topic_name_(rect_img_topic_name),
+      frame_id_(frame_id),
+      roi_exposure_(roi_exposure),
+      focus_threshold_(focus_threshold),
+      check_focus_in_img_center_(check_focus_in_img_center),
+      stale_pixel_intensity_threshold_(stale_pixel_intensity_threshold),
+      stale_min_changed_pixels_pct_(stale_min_changed_pixels_pct),
+      stale_window_size_(static_cast<size_t>(stale_window_size)),
+      buffer_size_(buffer_size),
+      preferred_cam_format_(preferred_cam_format),
+      info_manager_(node_.get(), frame_id),
+      capture_delay_(rclcpp::Duration(0, 0.0))
 {
     int dur = 0;
     m_pub_image_ptr =
@@ -85,7 +102,21 @@ void Capture::loadCameraInfo()
     rescale_camera_info_ = false;
     node_->get_parameter_or("rescale_camera_info", rescale_camera_info_, rescale_camera_info_);
 
-    for (int i = 0;; ++i)
+  for (int i = 0;; ++i)
+  {
+    int code = 0;
+    double value = 0.0;
+    std::stringstream stream;
+    stream << "property_" << i << "_code";
+    const std::string param_for_code = stream.str();
+    stream.str("");
+    stream << "property_" << i << "_value";
+    const std::string param_for_value = stream.str();
+    if (!node_->get_parameter(param_for_code, code) || !node_->get_parameter(param_for_value, value))
+    {
+      break;
+    }
+    if (!setCapProperty(code, value))
     {
         int code = 0;
         double value = 0.0;
@@ -191,17 +222,47 @@ bool Capture::rescaleFromFile(uint width, uint height)
 
 bool Capture::open(int32_t device_id)
 {
-    cap_.open(device_id, cv::CAP_V4L2);
-    if (!cap_.isOpened())
-    {
-        return false;
-    }
+  cap_.open(device_id, cv::CAP_V4L2);
+  grab_pending_ = false;
+  if (!cap_.isOpened())
+  {
+    return false;
+  }
+  
+  // configureRawDecode() is NOT called here: Driver::setup() applies cv::CAP_PROP_FOURCC after
+  // this returns, so the fourcc is still the uvcvideo default at this point. Driver::setup()
+  // calls it once every property is in place.
+  loadCameraInfo();
+  return true;
+}
 
-    // configureRawDecode() is NOT called here: Driver::setup() applies cv::CAP_PROP_FOURCC after
-    // this returns, so the fourcc is still the uvcvideo default at this point. Driver::setup()
-    // calls it once every property is in place.
-    loadCameraInfo();
-    return true;
+bool Capture::open(const std::string &port)
+{
+  std::string device;
+  
+  if (det_device_path(port.c_str()) != "-1")
+  {
+    device = "/dev/video" + det_device_path(port.c_str());
+  }
+  else
+  {
+    RCLCPP_WARN_ONCE(node_->get_logger(), "[%s] Unable to determine device for port %s.", node_->get_name(), port.c_str());
+    return false;
+  }
+  
+  cap_.open(device, cv::CAP_V4L2);
+  grab_pending_ = false;
+  
+  if (!cap_.isOpened())
+  {
+    return false;
+  }
+  
+  // configureRawDecode() is NOT called here: Driver::setup() applies cv::CAP_PROP_FOURCC after
+  // this returns, so the fourcc is still the uvcvideo default at this point. Driver::setup()
+  // calls it once every property is in place.
+  loadCameraInfo();
+  return true;
 }
 
 bool Capture::open(const std::string& port)
@@ -257,17 +318,61 @@ bool Capture::grab()
         cap_.set(cv::CAP_PROP_POS_FRAMES, 0);
     }
 
-    // OpenCV 4.11 (JP5) throws cv::Exception from the V4L2 MJPG path when the camera returns an empty
-    // frame (imdecode assertion); uncaught it aborts the whole component container (2026-09-03).
-    try
-    {
-        return cap_.grab();
-    } catch (const cv::Exception& e)
-    {
-        RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, "[%s] grab threw: %s", node_->get_name(),
-                             e.what());
-        return false;
-    }
+  // OpenCV 4.11 (JP5) throws cv::Exception from the V4L2 MJPG path when the camera returns an empty
+  // frame (imdecode assertion); uncaught it aborts the whole component container (2026-09-03).
+  try
+  {
+    grab_pending_ = cap_.grab();
+    stepAutoExposureRearm();
+    return grab_pending_;
+  }
+  catch (const cv::Exception& e)
+  {
+    grab_pending_ = false;
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, "[%s] grab threw: %s", node_->get_name(), e.what());
+    return false;
+  }
+}
+
+// Ceiling used when CAP_PROP_FRAME_WIDTH/HEIGHT are not usable: 8 MB is far above any MJPG frame
+// these cameras produce, and still small enough to catch a runaway bytesused from uvcvideo.
+static constexpr size_t RAW_MJPG_FALLBACK_MAX_BYTES = 8u * 1024u * 1024u;
+
+bool Capture::hasPendingGrab() const
+{
+  return grab_pending_;
+}
+
+bool Capture::setCapProperty(int property_id, double value)
+{
+  const bool ok = cap_.set(property_id, value);
+  if (restartsStream(property_id)) onStreamRestart();
+  return ok;
+}
+
+void Capture::onStreamRestart()
+{
+  grab_pending_ = false;
+  ae_rearm_countdown_ = 0;
+
+  // Video files, the ROI exposure loop and manual exposure have no hardware auto exposure to re-arm.
+  if (video_path_ != "" || roi_exposure_) return;
+  if (!node_->get_parameter("cv_cap_prop_auto_exposure", ae_rearm_mode_) || ae_rearm_mode_ <= 1.0) return;
+
+  ae_rearm_countdown_ = AE_REARM_FRAMES;
+}
+
+void Capture::stepAutoExposureRearm()
+{
+  if (!grab_pending_ || ae_rearm_countdown_ == 0) return;
+
+  const bool first_frame = ae_rearm_countdown_ == AE_REARM_FRAMES;
+  --ae_rearm_countdown_;
+  if (first_frame) cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, 1.0);  // manual
+  if (ae_rearm_countdown_ > 0) return;
+
+  cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, ae_rearm_mode_);
+  RCLCPP_INFO(node_->get_logger(), "[%s] re-armed auto exposure after a stream restart", node_->get_name());
 }
 
 // Ceiling used when CAP_PROP_FRAME_WIDTH/HEIGHT are not usable: 8 MB is far above any MJPG frame
@@ -276,67 +381,67 @@ static constexpr size_t RAW_MJPG_FALLBACK_MAX_BYTES = 8u * 1024u * 1024u;
 
 bool Capture::capture(bool flip_vertical, bool flip_horizontal)
 {
-    try
+  // Video files have no V4L2 buffers and are retrieved without a grab.
+  if (video_path_.empty() && !grab_pending_) return false;
+
+  try
+  {
+    if (raw_mjpg_)
     {
-        if (raw_mjpg_)
-        {
-            // Raw compressed buffer: Mat(1, bytesused, CV_8U) wrapping the V4L2 mmap area.
-            cv::Mat raw;
-            if (!cap_.retrieve(raw) || raw.empty()) return false;
-            const size_t n = raw.total() * raw.elemSize();
-            // Upper bound on a sane JPEG for this geometry. With CAP_PROP_CONVERT_RGB cleared the
-            // V4L2 backend can report the raw buffer geometry instead of the image size, so a
-            // non-positive width or height must NOT collapse max_n to 4096 - that would reject
-            // every frame and blank the camera. Fall back to a flat ceiling in that case.
-            const double prop_w = cap_.get(cv::CAP_PROP_FRAME_WIDTH);
-            const double prop_h = cap_.get(cv::CAP_PROP_FRAME_HEIGHT);
-            const size_t max_n = (prop_w > 0.0 && prop_h > 0.0)
-                                     ? static_cast<size_t>(prop_w) * static_cast<size_t>(prop_h) * 2 + 4096
-                                     : RAW_MJPG_FALLBACK_MAX_BYTES;
-            if (n < 4 || n > max_n || raw.data[0] != 0xFF || raw.data[1] != 0xD8)
-            {
-                RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000,
-                                     "[%s] dropping invalid MJPG frame (%zu bytes)", node_->get_name(), n);
-                return false;
-            }
-            cv::imdecode(raw, cv::IMREAD_COLOR, &bridge_.image);
-            if (bridge_.image.empty()) return false;
-        }
-        else if (!cap_.retrieve(bridge_.image))
-        {
-            return false;
-        }
-    } catch (const cv::Exception& e)
-    {
-        RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, "[%s] retrieve threw: %s",
-                             node_->get_name(), e.what());
+      // Raw compressed buffer: Mat(1, bytesused, CV_8U) wrapping the V4L2 mmap area.
+      cv::Mat raw;
+      if (!cap_.retrieve(raw) || raw.empty()) return false;
+      const size_t n = raw.total() * raw.elemSize();
+      // Upper bound on a sane JPEG for this geometry. With CAP_PROP_CONVERT_RGB cleared the
+      // V4L2 backend can report the raw buffer geometry instead of the image size, so a
+      // non-positive width or height must NOT collapse max_n to 4096 - that would reject
+      // every frame and blank the camera. Fall back to a flat ceiling in that case.
+      const double prop_w = cap_.get(cv::CAP_PROP_FRAME_WIDTH);
+      const double prop_h = cap_.get(cv::CAP_PROP_FRAME_HEIGHT);
+      const size_t max_n = (prop_w > 0.0 && prop_h > 0.0) ? static_cast<size_t>(prop_w) * static_cast<size_t>(prop_h) * 2 + 4096 : RAW_MJPG_FALLBACK_MAX_BYTES;
+      if (n < 4 || n > max_n || raw.data[0] != 0xFF || raw.data[1] != 0xD8)
+      {
+        RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, "[%s] dropping invalid MJPG frame (%zu bytes)", node_->get_name(), n);
         return false;
+      }
+      cv::imdecode(raw, cv::IMREAD_COLOR, &bridge_.image);
+      if (bridge_.image.empty()) return false;
     }
-    if (flip_vertical) cv::flip(bridge_.image, bridge_.image, 0);
-    if (flip_horizontal) cv::flip(bridge_.image, bridge_.image, 1);
-
-    // Our custom made exposure set depending on ROI
-    if (roi_exposure_) custom_roi_exposure(bridge_.image);
-
-    sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
-
-    // Pack the OpenCV image into the ROS image.
-    timestamp_ = node_->now();
-    msg->header.stamp = timestamp_;
-    msg->header.frame_id = frame_id_;
-    msg->height = bridge_.image.rows;
-    msg->width = bridge_.image.cols;
-    msg->encoding = mat_type2encoding(bridge_.image.type());
-    msg->is_bigendian = false;
-    msg->step = static_cast<sensor_msgs::msg::Image::_step_type>(bridge_.image.step);
-    msg->data.assign(bridge_.image.datastart, bridge_.image.dataend);
-
-    // Dont publish image if empty
-    if (bridge_.image.empty())
+    else if (!cap_.retrieve(bridge_.image))
     {
-        RCLCPP_WARN_ONCE(node_->get_logger(), "[%s] Frame is empty.", node_->get_name());
-        return false;
+      return false;
     }
+  }
+  catch (const cv::Exception& e)
+  {
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, "[%s] retrieve threw: %s", node_->get_name(), e.what());
+    return false;
+  }
+  if (flip_vertical) cv::flip(bridge_.image, bridge_.image, 0);
+  if (flip_horizontal) cv::flip(bridge_.image, bridge_.image, 1);
+
+  // Our custom made exposure set depending on ROI
+  if (roi_exposure_) custom_roi_exposure(bridge_.image);
+
+  sensor_msgs::msg::Image::UniquePtr msg(new sensor_msgs::msg::Image());
+
+  // Pack the OpenCV image into the ROS image.
+  timestamp_ = node_->now();
+  msg->header.stamp = timestamp_;
+  msg->header.frame_id = frame_id_;
+  msg->height = bridge_.image.rows;
+  msg->width = bridge_.image.cols;
+  msg->encoding = mat_type2encoding(bridge_.image.type());
+  msg->is_bigendian = false;
+  msg->step = static_cast<sensor_msgs::msg::Image::_step_type>(bridge_.image.step);
+  msg->data.assign(bridge_.image.datastart, bridge_.image.dataend);
+
+  // Dont publish image if empty
+  if (bridge_.image.empty())
+  {
+    RCLCPP_WARN_ONCE(node_->get_logger(), "[%s] Frame is empty.", node_->get_name());
+    return false;
+  }
 
     // Publish the image.
     publish(std::move(msg));
@@ -352,41 +457,73 @@ bool Capture::capture(bool flip_vertical, bool flip_horizontal)
 
 void Capture::custom_roi_exposure(cv::Mat& frame)
 {
-    cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, 1);  // disable auto exposure
-    double exposure = cap_.get(cv::CAP_PROP_EXPOSURE);
+  cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, 1);  // disable auto exposure
+  double exposure = cap_.get(cv::CAP_PROP_EXPOSURE);
 
-    // define ROI for the center of the image
-    cv::Rect roi(frame.cols / 4, frame.rows / 4, frame.cols / 2, frame.rows / 2);
-    cv::Mat roiFrame = frame(roi);
+  // define ROI for the center of the image
+  cv::Rect roi(frame.cols / 4, frame.rows / 4, frame.cols / 2, frame.rows / 2);
+  cv::Mat roiFrame = frame(roi);
 
-    // convert the ROI to grayscale
-    cv::Mat grayRoi;
-    cv::cvtColor(roiFrame, grayRoi, cv::COLOR_BGR2GRAY);
+  // convert the ROI to grayscale
+  cv::Mat grayRoi;
+  cv::cvtColor(roiFrame, grayRoi, cv::COLOR_BGR2GRAY);
 
-    // calculate the histogram
-    int histSize = 256;
-    float range[] = {0, 256};  // the upper boundary is exclusive
-    const float* histRange = {range};
-    cv::Mat hist;
-    cv::calcHist(&grayRoi, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange);
+  // calculate the histogram
+  int histSize = 256;
+  float range[] = { 0, 256 } ; // the upper boundary is exclusive
+  const float* histRange = { range };
+  cv::Mat hist;
+  cv::calcHist(&grayRoi, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange);
 
-    // analyze the histogram to decide on exposure adjustment
-    double underExposedThreshold = 0.1 * grayRoi.total();
-    double overExposedThreshold = 0.1 * grayRoi.total();
-    // Compute overexposed and underexposed pixels
-    double underExposedPixels = 0;
-    double overExposedPixels = 0;
-    for (int i = 0; i < histSize; i++)
-    {
-        if (i < 50)
-        {
-            underExposedPixels += hist.at<float>(i);
-        }
-        else if (i > 200)
-        {
-            overExposedPixels += hist.at<float>(i);
-        }
-    }
+  // analyze the histogram to decide on exposure adjustment
+  double underExposedThreshold = 0.1 * grayRoi.total();
+  double overExposedThreshold = 0.1 * grayRoi.total();
+  // Compute overexposed and underexposed pixels
+  double underExposedPixels = 0;
+  double overExposedPixels = 0;
+  for (int i = 0; i < histSize; i++) {
+      if (i < 50) {
+          underExposedPixels += hist.at<float>(i);
+      } else if (i > 200) {
+          overExposedPixels += hist.at<float>(i);
+      }
+  }
+
+  double step = 0.0;
+  if (underExposedPixels > underExposedThreshold) {  // underexposed
+      RCLCPP_DEBUG(node_->get_logger(), "[%s] Underexposed: %f vs cap exposure: %f", node_->get_name(), underExposedPixels, exposure);
+      step = 1.0;
+  } else if (overExposedPixels > overExposedThreshold) {  // overexposed
+      RCLCPP_DEBUG(node_->get_logger(), "[%s] Overexposed: %f vs cap exposure: %f", node_->get_name(), overExposedPixels, exposure);
+      step = -1.0;
+  }
+
+  if (step == 0.0) return;
+
+  // Stop at the rails. This loop used to add or subtract 1 every frame without any bound, so on
+  // a persistently bright or dark scene it walked past the device's exposure range and the camera
+  // STALLed every write: "Failed to query (SET_CUR) UVC control 4 on unit 1: -32" (EPIPE), 75
+  // times in one boot on 4F042. OpenCV cannot report a control's range, so read the value back
+  // and latch the direction that no longer moves.
+  if ((step > 0.0 && exposure_at_max_) || (step < 0.0 && exposure_at_min_)) return;
+
+  cap_.set(cv::CAP_PROP_EXPOSURE, exposure + step);  // set new exposure
+  const double applied = cap_.get(cv::CAP_PROP_EXPOSURE);
+  if (applied == exposure)
+  {
+    // The device kept its old value, so this direction is exhausted.
+    if (step > 0.0)
+      exposure_at_max_ = true;
+    else
+      exposure_at_min_ = true;
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 30000, "[%s] exposure %f is at the device limit, stopping adjustment in that direction", node_->get_name(), exposure);
+  }
+  else
+  {
+    exposure_at_max_ = false;
+    exposure_at_min_ = false;
+  }
+}
 
     double step = 0.0;
     if (underExposedPixels > underExposedThreshold)
@@ -470,7 +607,26 @@ void Capture::rectify()
 
 void Capture::publish(sensor_msgs::msg::Image::UniquePtr msg) { m_pub_image_ptr->publish(std::move(msg)); }
 
-void Capture::close() { cap_.release(); }
+void Capture::suspendAutoExposureRearm()
+{
+  // Countdown below AE_REARM_FRAMES means stepAutoExposureRearm() already switched to manual.
+  if (ae_rearm_countdown_ == 0 || ae_rearm_countdown_ == AE_REARM_FRAMES) return;
+
+  if (cap_.isOpened()) cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, ae_rearm_mode_);
+  ae_rearm_countdown_ = AE_REARM_FRAMES;
+}
+
+Capture::~Capture()
+{
+  suspendAutoExposureRearm();
+}
+
+void Capture::close()
+{
+  suspendAutoExposureRearm();
+  grab_pending_ = false;
+  cap_.release();
+}
 
 bool Capture::is_opened() { return cap_.isOpened(); }
 
@@ -510,16 +666,11 @@ bool Capture::setPropertyFromParam(int property_id, const std::string& param_nam
 {
     if (cap_.isOpened())
     {
-        double value = 0.0;
-        if (node_->get_parameter(param_name, value))
-        {
-            if (!cap_.set(property_id, value) && value != getProperty(property_id))
-            {
-                RCLCPP_ERROR(node_->get_logger(), "[%s] Setting with code %d and value %f failed", node_->get_name(),
-                             property_id, value);
-                return false;
-            }
-        }
+      if (!setCapProperty(property_id, value) && value != getProperty(property_id))
+      {
+        RCLCPP_ERROR(node_->get_logger(), "[%s] Setting with code %d and value %f failed", node_->get_name(), property_id, value);
+        return false;
+      }
     }
     return true;
 }
@@ -575,44 +726,60 @@ std::string Capture::execute_command(const char* command)
 
 std::string Capture::det_device_path(const char* port)
 {
-    std::string video_device = "-1";
-    // TODO: instead of reading the output from shell, iter the directory
-    std::string video_devices = execute_command("ls /dev/video*");
-    std::string delimiter = "\n";
+  // TODO: instead of reading the output from shell, iter the directory
+  std::string video_devices = execute_command("ls /dev/video*");
+  std::string delimiter = "\n";
 
-    size_t pos = 0;
-    std::string pre_token;
-    std::string token;
-    std::string output_command;
-    std::vector<int> devices;
+  size_t pos = 0;
+  std::string pre_token;
+  std::string token;
+  std::string output_command;
+  std::vector<int> devices;
 
-    while ((pos = video_devices.find(delimiter)) != std::string::npos)
+  while ((pos = video_devices.find(delimiter)) != std::string::npos)
+  {
+    // get /dev/videoX substring
+    pre_token = video_devices.substr(0, pos);
+    // get number of the cam device
+    token = pre_token.substr(10, 2);
+    devices.push_back(std::stoi(token));
+
+    video_devices.erase(0, pos + delimiter.length());
+  }
+
+  // Sort the vector to get devices in order
+  std::sort(devices.begin(), devices.end());
+
+  // Collect every /dev/videoX whose USB path matches the given port 
+  std::vector<int> matching_devices;
+  for (const auto& cam : devices)
+  {
+    output_command = "udevadm info --query=path --name=/dev/video" + std::to_string(cam);
+    std::string camera_device_info = execute_command(output_command.c_str());
+    if (camera_device_info.find(port) != std::string::npos)
     {
-        // get /dev/videoX substring
-        pre_token = video_devices.substr(0, pos);
-        // get number of the cam device
-        token = pre_token.substr(10, 2);
-        devices.push_back(std::stoi(token));
-
-        video_devices.erase(0, pos + delimiter.length());
+      matching_devices.push_back(cam);
     }
+  }
 
-    // Sort the vector to get devices in order
-    std::sort(devices.begin(), devices.end());
+  if (matching_devices.empty()) return "-1";
 
-    // Iter the devices to identify which port correspond to which videoX
-    for (const auto& cam : devices)
-    {
-        output_command = "udevadm info --query=path --name=/dev/video" + std::to_string(cam);
-        std::string camera_device_info = execute_command(output_command.c_str());
-        if (camera_device_info.find(port) != std::string::npos)
-        {
-            video_device = std::to_string(cam);
-            return video_device;
-        }
-    }
+  // Prefer the node that actually advertises our capture format; fall back to the first
+  // match if none do, so a device we can't format-probe for some reason still opens.
+  for (const auto& cam : matching_devices)
+  {
+    if (supportsPreferredFormat(cam)) return std::to_string(cam);
+  }
 
-    return video_device;
+  return std::to_string(matching_devices.front());
+}
+
+bool Capture::supportsPreferredFormat(int device_number)
+{
+  std::string output_command =
+      "v4l2-ctl --device=/dev/video" + std::to_string(device_number) + " --list-formats";
+  std::string formats = execute_command(output_command.c_str());
+  return formats.find(preferred_cam_format_) != std::string::npos;
 }
 
 std::string Capture::mat_type2encoding(int mat_type)
@@ -852,6 +1019,19 @@ void Capture::configureRawDecode()
     raw_mjpg_ = (fourcc == "MJPG") && cap_.set(cv::CAP_PROP_CONVERT_RGB, 0);
     RCLCPP_INFO(node_->get_logger(), "[%s] fourcc %s, raw MJPG decode %s", node_->get_name(), fourcc.c_str(),
                 raw_mjpg_ ? "enabled" : "disabled");
+}
+
+void Capture::configureRawDecode()
+{
+  // Video playback keeps OpenCV's own decoding: a container may report an MJPG fourcc, and
+  // clearing CAP_PROP_CONVERT_RGB there would hand us frames the raw path cannot validate.
+  if (video_path_ != "") return;
+
+  const int fcc = static_cast<int>(cap_.get(cv::CAP_PROP_FOURCC));
+  const std::string fourcc{static_cast<char>(fcc & 0xFF), static_cast<char>((fcc >> 8) & 0xFF),
+                           static_cast<char>((fcc >> 16) & 0xFF), static_cast<char>((fcc >> 24) & 0xFF)};
+  raw_mjpg_ = (fourcc == "MJPG") && setCapProperty(cv::CAP_PROP_CONVERT_RGB, 0);
+  RCLCPP_INFO(node_->get_logger(), "[%s] fourcc %s, raw MJPG decode %s", node_->get_name(), fourcc.c_str(), raw_mjpg_ ? "enabled" : "disabled");
 }
 
 }  // namespace cv_camera
