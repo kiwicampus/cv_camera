@@ -658,6 +658,7 @@ void Driver::PauseImageCb(shared_ptr_request_id const, shared_ptr_bool_request c
   {
     read_tmr_->cancel();
     publish_tmr_->cancel();
+    camera_->suspendAutoExposureRearm();
     // Evidence gathered before the pause can't be told apart from a genuinely frozen
     // camera once sampling stops, so it must not survive the pause.
     camera_->resetStaleEvidence();

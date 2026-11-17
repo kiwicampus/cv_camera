@@ -151,6 +151,17 @@ public:
   void close();
 
   /**
+   * @brief Call before grabbing stops (pause, close, destruction).
+   *
+   * An auto exposure re-arm in progress has the camera in manual exposure and only finishes after
+   * more grabs. Put the configured mode back now, so the camera is never left in manual, and redo
+   * the re-arm on the next grab.
+   */
+  void suspendAutoExposureRearm();
+
+  ~Capture();
+
+  /**
    * @brief Checks if capture device is opened
    * Uses release OpenCV function.
   */

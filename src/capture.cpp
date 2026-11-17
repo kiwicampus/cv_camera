@@ -521,8 +521,23 @@ void Capture::publish(sensor_msgs::msg::Image::UniquePtr msg)
   m_pub_image_ptr->publish(std::move(msg));
 }
 
+void Capture::suspendAutoExposureRearm()
+{
+  // Countdown below AE_REARM_FRAMES means stepAutoExposureRearm() already switched to manual.
+  if (ae_rearm_countdown_ == 0 || ae_rearm_countdown_ == AE_REARM_FRAMES) return;
+
+  if (cap_.isOpened()) cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, ae_rearm_mode_);
+  ae_rearm_countdown_ = AE_REARM_FRAMES;
+}
+
+Capture::~Capture()
+{
+  suspendAutoExposureRearm();
+}
+
 void Capture::close()
 {
+  suspendAutoExposureRearm();
   grab_pending_ = false;
   cap_.release();
 }
